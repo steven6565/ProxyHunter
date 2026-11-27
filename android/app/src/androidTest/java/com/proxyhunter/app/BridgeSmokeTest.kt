@@ -1,6 +1,8 @@
 package com.proxyhunter.app
 
+import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import org.junit.Before
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -10,6 +12,12 @@ import org.junit.runner.RunWith
 /** Runs on a real Android device/emulator against the packaged APK. */
 @RunWith(AndroidJUnit4::class)
 class BridgeSmokeTest {
+
+    @Before
+    fun launchApp() {
+        // MainActivity starts ProxyService, which boots the embedded backend.
+        ActivityScenario.launch(MainActivity::class.java)
+    }
 
     private fun waitUntil(timeoutMs: Long, predicate: () -> Boolean): Boolean {
         val deadline = System.currentTimeMillis() + timeoutMs

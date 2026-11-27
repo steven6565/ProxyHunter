@@ -66,6 +66,7 @@ jobs:
           script: |
             APK=$(find apk -name '*.apk' | head -1)
             adb install -r "$APK"
+            adb shell pm grant com.proxyhunter.app android.permission.POST_NOTIFICATIONS || true
             adb shell am instrument -w -r -e package com.proxyhunter.app \
               com.proxyhunter.app.test/androidx.test.runner.AndroidJUnitRunner | tee emulator-test.txt
       - name: Upload emulator test evidence
