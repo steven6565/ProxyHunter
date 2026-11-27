@@ -10,7 +10,7 @@
 | Reliability | Controlled concurrency 10/50/100/200/500 | **PASS** | **500/500 successful** at all levels; worst success rate 100%; measured 37–90 req/s this run |
 | Performance | Memory / FD leak | **PASS** | 200 requests: <0.1 MB growth; 120 requests: FD count stable |
 | Stability | 30-second sustained local run | **PASS** | hundreds of successful requests, gateway stayed online |
-| Stability | **60-minute sustained run** | **NOT TESTED** | session time insufficient; automated local fixture exists, run on VPS/CI |
+| Stability | **60-minute sustained run** | **PASS** | 3,600 s local controlled run: 44,286 successful / 122 failed requests = **99.725%** success (`output/stability_60min.json`) |
 | Packaging | Android APK build | **PASS** | GitHub Actions run 45957372999; 46.8 MB APK with classes.dex + manifest |
 | Packaging | Windows portable EXE + Setup build | **PASS** | GitHub Actions run 45957889216; 7.7 MB EXE + 20.6 MB Setup (MZ/PE verified) |
 | CI smoke | Windows EXE `--selftest` startup | **PASS** | built EXE wrote selftest.json and reported backend ready |

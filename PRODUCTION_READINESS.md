@@ -13,7 +13,7 @@
 | Windows EXE selftest on CI | PASS |
 | Installed/started Android app on physical device | NOT TESTED |
 | Interactive Windows GUI on real desktop | NOT TESTED |
-| 60-minute stability run | IN PROGRESS / see output/stability_60min.json (99.7% success at 54 min) |
+| 60-minute stability run | **PASS** — 3,600 s, 44,286 success / 122 failure = 99.725% |
 | Code signing | Android debug-signed; Windows unsigned |
 
 ### Security posture (v3)

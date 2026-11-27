@@ -12,4 +12,6 @@ CI smoke tests:
 - Windows EXE --selftest: PASS (backend initialised, selftest.json written by the built executable).
 - Android: compile/package verification PASS (APK contains classes.dex and manifest). Physical-device install/start: PENDING (no device/emulator in delivery environment).
 
+Stability: 60-minute controlled backend run PASS — 44,286 successful / 122 failed (99.725%) in output/stability_60min.json.
+
 Signing: Android APK is debug-signed; Windows EXE/Setup are UNSIGNED (no code-signing certificate configured).
