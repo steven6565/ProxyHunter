@@ -34,15 +34,12 @@ android {
     }
     kotlinOptions { jvmTarget = "17" }
 
-    packaging {
-        resources { excludes += setOf("/META-INF/{AL2.0,LGPL2.1}") }
-    }
 }
 
 chaquopy {
     defaultConfig {
         version = "3.12"
-        abiFilters += listOf("arm64-v8a", "armeabi-v7a")
+        abiFilters("arm64-v8a", "armeabi-v7a")
         pip {
             install("aiohttp")
             install("aiohttp-socks")
@@ -52,7 +49,7 @@ chaquopy {
     }
     sourceSets {
         getByName("main") {
-            srcDirs += listOf(
+            srcDirs(
                 "src/main/python",
                 "../../backend",   // shared controller
                 "../../shared",    // shared export engine

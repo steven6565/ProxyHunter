@@ -4,10 +4,12 @@
 import os
 from pathlib import Path
 
-ROOT = Path(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+# PyInstaller executes spec files without __file__; SPEC is provided instead.
+HERE = os.path.dirname(os.path.abspath(SPEC)) if "SPEC" in globals() else os.getcwd()
+ROOT = Path(os.path.abspath(os.path.join(HERE, "..")))
 
 a = Analysis(
-    [os.path.join(os.path.dirname(__file__), "app.py")],
+    [os.path.join(HERE, "app.py")],
     pathex=[str(ROOT), str(ROOT / "backend"), str(ROOT / "shared")],
     binaries=[],
     datas=[],
@@ -31,7 +33,7 @@ exe = EXE(
     strip=False,
     upx=False,
     console=False,
-    icon=os.path.join(os.path.dirname(__file__), "ProxyHunter.ico"),
+    icon=os.path.join(HERE, "ProxyHunter.ico"),
 )
 coll = COLLECT(
     exe, a.binaries, a.zipfiles, a.datas,

@@ -1,7 +1,7 @@
 {
   "status": "running",
-  "elapsed_s": 180,
-  "success": 2544,
+  "elapsed_s": 360,
+  "success": 5052,
   "failure": 0,
   "success_rate": 1.0,
   "samples": [
@@ -20,6 +20,24 @@
     {
       "elapsed_s": 180,
       "success": 2544,
+      "failure": 0,
+      "success_rate": 1.0
+    },
+    {
+      "elapsed_s": 240,
+      "success": 3372,
+      "failure": 0,
+      "success_rate": 1.0
+    },
+    {
+      "elapsed_s": 300,
+      "success": 4216,
+      "failure": 0,
+      "success_rate": 1.0
+    },
+    {
+      "elapsed_s": 360,
+      "success": 5052,
       "failure": 0,
       "success_rate": 1.0
     }
