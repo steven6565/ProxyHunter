@@ -29,6 +29,9 @@ class ProxyService : Service() {
         Thread {
             try {
                 android.util.Log.i("ProxyHunter", "Starting Chaquopy bridge...")
+                if (!Python.isStarted()) {
+                    Python.start(applicationContext)
+                }
                 Python.getInstance()
                     .getModule("bridge").get("BridgeServer")?.callAttr(
                         "start", 8765, applicationContext.filesDir.absolutePath
