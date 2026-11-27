@@ -1,6 +1,6 @@
-"""Proxy Hunter v3.1 - Desktop & Mobile Edition (critical bug fixes)."""
+"""Proxy Hunter v3.1.1 - Desktop & Mobile Edition (Android cleartext fix)."""
 
-__version__ = "3.1.0"
+__version__ = "3.1.1"
 __all__ = [
     "checker",
     "config",

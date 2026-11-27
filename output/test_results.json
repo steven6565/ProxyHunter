@@ -1,7 +1,7 @@
 {
-  "version": "3.1.0",
-  "timestamp": "2026-11-27T08:32:48Z",
-  "workspace": "/data/user/0/ai.antigem/files/usr/tmp/proxyhunter-v2-tests-9uqrfir8",
+  "version": "3.1.1",
+  "timestamp": "2026-11-27T08:53:13Z",
+  "workspace": "/data/user/0/ai.antigem/files/usr/tmp/proxyhunter-v2-tests-ae84c_3f",
   "results": [
     {
       "name": "01_python_syntax_compilation",
@@ -16,7 +16,7 @@
     {
       "name": "03_application_startup",
       "status": "PASS",
-      "detail": "version=3.1.0, config_version=4"
+      "detail": "version=3.1.1, config_version=4"
     },
     {
       "name": "04_existing_feature_regression",
@@ -36,7 +36,7 @@
     {
       "name": "07_gateway_startup",
       "status": "PASS",
-      "detail": "endpoint=http://127.0.0.1:48411, running=True"
+      "detail": "endpoint=http://127.0.0.1:46731, running=True"
     },
     {
       "name": "08_single_stable_endpoint",
@@ -116,7 +116,7 @@
     {
       "name": "23_automatic_pool_refresh",
       "status": "PASS",
-      "detail": "callback calls=1, last_refresh=2026-11-27T08:32:08Z"
+      "detail": "callback calls=1, last_refresh=2026-11-27T08:52:33Z"
     },
     {
       "name": "24_graceful_shutdown",
@@ -131,12 +131,12 @@
     {
       "name": "26_concurrency_benchmarks",
       "status": "PASS",
-      "detail": "worst success rate=100.0%; 10:10/10@166.8rps; 50:50/50@259.7rps; 100:100/100@233.4rps; 200:200/200@142.3rps; 500:500/500@166.9rps"
+      "detail": "worst success rate=100.0%; 10:10/10@130.7rps; 50:50/50@260.2rps; 100:100/100@227.7rps; 200:200/200@143.2rps; 500:500/500@163.9rps"
     },
     {
       "name": "27_memory_leak_check",
       "status": "PASS",
-      "detail": "growth=0.07 MB over 200 requests"
+      "detail": "growth=0.06 MB over 200 requests"
     },
     {
       "name": "28_fd_leak_check",
@@ -146,7 +146,7 @@
     {
       "name": "30_long_duration_stability",
       "status": "PASS",
-      "detail": "30s run, 880 successful requests, gateway running=True"
+      "detail": "30s run, 832 successful requests, gateway running=True"
     },
     {
       "name": "29_output_file_integrity",
@@ -171,32 +171,32 @@
     "10": {
       "requests": 10,
       "ok": 10,
-      "seconds": 0.06,
-      "rps": 166.8
+      "seconds": 0.08,
+      "rps": 130.7
     },
     "50": {
       "requests": 50,
       "ok": 50,
       "seconds": 0.19,
-      "rps": 259.7
+      "rps": 260.2
     },
     "100": {
       "requests": 100,
       "ok": 100,
-      "seconds": 0.43,
-      "rps": 233.4
+      "seconds": 0.44,
+      "rps": 227.7
     },
     "200": {
       "requests": 200,
       "ok": 200,
-      "seconds": 1.41,
-      "rps": 142.3
+      "seconds": 1.4,
+      "rps": 143.2
     },
     "500": {
       "requests": 500,
       "ok": 500,
-      "seconds": 3.0,
-      "rps": 166.9
+      "seconds": 3.05,
+      "rps": 163.9
     }
   }
 }

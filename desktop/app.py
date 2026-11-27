@@ -442,7 +442,7 @@ def selftest() -> None:
     controller.close()
     Path("selftest.json").write_text(json.dumps({
         "ok": True,
-        "version": "3.1.0",
+        "version": "3.1.1",
         "endpoint": stats.get("endpoint"),
         "status": stats.get("status"),
     }, indent=2), encoding="utf-8")

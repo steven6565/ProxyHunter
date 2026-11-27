@@ -1,5 +1,6 @@
 package com.proxyhunter.app
 
+import android.os.SystemClock
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
@@ -28,6 +29,17 @@ object BridgeClient {
     }
 
     fun healthy(): Boolean = health().optBoolean("ok", false)
+
+    /** Poll until the Python bridge and local gateway are ready. */
+    fun waitForBridge(timeoutMs: Long = 20_000): Boolean {
+        val deadline = SystemClock.elapsedRealtime() + timeoutMs
+        while (SystemClock.elapsedRealtime() < deadline) {
+            val h = health()
+            if (h.optBoolean("ok", false) && h.optBoolean("ready", true)) return true
+            Thread.sleep(400)
+        }
+        return false
+    }
 
     fun action(name: String, params: Map<String, Any> = emptyMap()): JSONObject {
         val json = JSONObject()

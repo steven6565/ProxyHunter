@@ -97,7 +97,9 @@ class Handler(BaseHTTPRequestHandler):
         if self.path == "/health":
             self._send({
                 "ok": CONTROLLER is not None and not STARTUP_ERROR,
-                "version": "3.1.0",
+                "ready": CONTROLLER is not None and not STARTUP_ERROR
+                         and CONTROLLER.gateway.running,
+                "version": "3.1.1",
                 "backend": "READY" if CONTROLLER is not None else "ERROR",
                 "gateway": "ONLINE" if CONTROLLER and CONTROLLER.gateway.running else "OFFLINE",
                 "internet": "ONLINE" if _internet_ok() else "OFFLINE",
@@ -197,7 +199,19 @@ class BridgeServer:
             ensure_backend()
         except Exception:
             pass  # /health will report the error; never kill the service
-        SERVER = ThreadingHTTPServer(("127.0.0.1", int(port)), Handler)
+        try:
+            SERVER = ThreadingHTTPServer(("127.0.0.1", int(port)), Handler)
+        except OSError:
+            # A previous service instance may still own the port. If it is a
+            # healthy ProxyHunter bridge, simply reuse it instead of crashing.
+            try:
+                import urllib.request
+                with urllib.request.urlopen(f"http://127.0.0.1:{port}/health", timeout=2) as response:
+                    if json.load(response).get("ok"):
+                        return
+            except Exception:  # noqa: BLE001
+                pass
+            raise
         SERVER.serve_forever()
 
     @staticmethod

@@ -52,7 +52,7 @@ import com.proxyhunter.app.ui.UiProxy
 import com.proxyhunter.app.ui.UiStats
 import com.proxyhunter.app.ui.SettingsScreen
 
-private val TABS = listOf("Home", "Proxies", "Gateway", "Downloads", "Settings")
+private val TABS = listOf("Home", "Proxies", "Gateway", "Files", "Settings")
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -97,6 +97,8 @@ class MainActivity : ComponentActivity() {
         }
 
         androidx.compose.runtime.LaunchedEffect(Unit) {
+            val ready = withContext(Dispatchers.IO) { BridgeClient.waitForBridge() }
+            if (!ready) message = "Backend still starting — retrying in background"
             while (true) {
                 refresh()
                 delay(1500)
@@ -139,7 +141,7 @@ class MainActivity : ComponentActivity() {
                                         }, contentDescription = label
                                     )
                                 },
-                                label = { Text(label) },
+                                label = { Text(label, maxLines = 1, style = MaterialTheme.typography.labelSmall) },
                             )
                         }
                     }

@@ -63,7 +63,7 @@ data class UiExport(val name: String, val count: Int, val sizeBytes: Long, val t
 fun HomeScreen(stats: UiStats, onAction: (String) -> Unit, onFindProxies: () -> Unit) {
     Column(modifier = Modifier.fillMaxWidth()) {
         SurfaceCard("Live status") {
-            Text("Gateway ${stats.gateway} · ${stats.endpoint}", fontWeight = FontWeight.SemiBold,
+            Text("Local gateway ${stats.gateway}", fontWeight = FontWeight.SemiBold,
                 color = if (stats.gateway == "ONLINE") Emerald else Danger)
             Text("Internet ${stats.internet}   Backend ${stats.backend}   App ${stats.status}")
             Text("Country: ${stats.country}   Rotation: ${stats.mode}")
