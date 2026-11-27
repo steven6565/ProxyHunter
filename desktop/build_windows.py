@@ -23,7 +23,7 @@ HIDDEN = [
     "aiohttp", "aiohttp_socks", "python_socks", "bs4",
     "rich", "rich.console", "rich.live", "rich.panel", "rich.table",
     "rich.progress", "rich.prompt", "rich.text",
-    "geoip2", "maxminddb", "tkinter", "_tkinter", "tkinter.ttk",
+    "geoip2", "maxminddb", "psutil", "tkinter", "_tkinter", "tkinter.ttk",
     "tkinter.filedialog", "tkinter.messagebox", "pystray",
     "PIL", "PIL.Image", "PIL.ImageDraw", "sqlite3", "ssl", "asyncio",
 ]
@@ -39,6 +39,8 @@ args = [
     "--paths", str(ROOT),
     "--paths", str(ROOT / "backend"),
     "--paths", str(ROOT / "shared"),
+    "--add-data", f"{ROOT / 'sources.json'};.",
+    "--add-data", f"{ROOT / 'config.json'};.",
 ]
 for module in HIDDEN:
     args += ["--hidden-import", module]

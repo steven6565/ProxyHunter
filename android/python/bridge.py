@@ -99,7 +99,7 @@ class Handler(BaseHTTPRequestHandler):
                 "ok": CONTROLLER is not None and not STARTUP_ERROR,
                 "ready": CONTROLLER is not None and not STARTUP_ERROR
                          and CONTROLLER.gateway.running,
-                "version": "3.1.1",
+                "version": "3.1.2",
                 "backend": "READY" if CONTROLLER is not None else "ERROR",
                 "gateway": "ONLINE" if CONTROLLER and CONTROLLER.gateway.running else "OFFLINE",
                 "internet": "ONLINE" if _internet_ok() else "OFFLINE",
@@ -139,6 +139,14 @@ class Handler(BaseHTTPRequestHandler):
                 )}
             elif action == "countries":
                 result = {"countries": controller.countries(), "capacity": controller.capacity()}
+            elif action == "sources":
+                result = {"sources": controller.sources()}
+            elif action == "source_toggle":
+                result = {"ok": controller.toggle_source(
+                    str(params.get("name", "")), bool(params.get("enabled", True))
+                )}
+            elif action == "source_test":
+                result = {"sources": worker.submit(controller.source_diagnostics()).result(timeout=120)}
             elif action == "discover":
                 workers = max(1, min(MAX_SAFE_WORKERS, int(params.get("workers", 50) or 50)))
                 controller.config["workers"]["count"] = workers

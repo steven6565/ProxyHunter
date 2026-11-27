@@ -28,8 +28,8 @@ android {
         applicationId = "com.proxyhunter.app"
         minSdk = 26          // Android 8.0+
         targetSdk = 35
-        versionCode = 311
-        versionName = "3.1.1"
+        versionCode = 312
+        versionName = "3.1.2"
         // x86_64 included so the APK can be exercised on a CI emulator.
         ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64") }
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"

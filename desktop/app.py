@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""ProxyHunter v3.0 Windows desktop application (Tkinter, no browser engine)."""
+"""ProxyHunter v3.1.2 Windows desktop application (Tkinter, no browser engine)."""
 
 from __future__ import annotations
 
@@ -37,7 +37,7 @@ SECTIONS = [
 class ProxyHunterApp(tk.Tk):
     def __init__(self) -> None:
         super().__init__()
-        self.title("ProxyHunter v3.0 — Desktop Edition")
+        self.title("ProxyHunter v3.1.2 — Desktop Edition")
         self.geometry("1180x760")
         self.minsize(940, 620)
         self.configure(bg=CHARCOAL)
@@ -93,7 +93,7 @@ class ProxyHunterApp(tk.Tk):
             self.nav.insert("", "end", text="  " + section, tags=(section,))
         self.nav.selection_set(self.nav.get_children()[0])
         self.nav.bind("<<TreeviewSelect>>", self._on_nav)
-        ttk.Label(side, text="v3.1.1 · local gateway", style="Muted.TLabel").pack(side="bottom", pady=14)
+        ttk.Label(side, text="v3.1.2 · local gateway", style="Muted.TLabel").pack(side="bottom", pady=14)
 
         self.content = ttk.Frame(self, padding=18)
         self.content.grid(row=0, column=1, sticky="nsew")
@@ -124,7 +124,8 @@ class ProxyHunterApp(tk.Tk):
             self.stat_labels = {}
             card = self._card(frame, "Live status")
             for key in ("status", "backend", "internet", "gateway", "endpoint", "country", "mode", "discovered", "working",
-                        "unique_ips", "healthy", "checked", "speed", "active", "workers",
+                        "unique_ips", "healthy", "checked", "speed", "active",
+                        "active_workers", "configured_workers",
                         "latency", "uptime", "last_refresh", "cpu", "ram"):
                 row = ttk.Frame(card, style="Card.TFrame")
                 row.pack(fill="x")
@@ -144,12 +145,21 @@ class ProxyHunterApp(tk.Tk):
             card = self._card(frame, name)
             ttk.Label(card, text="Bounded async workers · rate limits always respected",
                       style="Muted.TLabel").pack(anchor="w")
-            for text, action in (("Discover", "discover"), ("Check all", "check"),
-                                 ("Discover + check", "refresh"), ("Stop", "stop")):
-                ttk.Button(card, text=text, command=lambda a=action: self._run(a)).pack(side="left", padx=4, pady=10)
+            bar = ttk.Frame(card, style="Card.TFrame")
+            bar.pack(fill="x", pady=6)
+            for text, action in (("Find Proxies", "discover"), ("Check", "check"),
+                                 ("Discover + Check", "refresh"), ("Stop", "stop")):
+                ttk.Button(bar, text=text, command=lambda a=action: self._run(a)).pack(side="left", padx=3)
+            self.worker_var = tk.StringVar(value="50")
+            ttk.Label(bar, text="Workers", style="Muted.TLabel").pack(side="left", padx=(12, 4))
+            ttk.Combobox(
+                bar, textvariable=self.worker_var, state="readonly", width=8,
+                values=("10", "50", "100", "200", "500"),
+            ).pack(side="left")
             self.limit_var = tk.StringVar(value="500")
-            ttk.Entry(card, textvariable=self.limit_var, width=10).pack(side="left", padx=6)
-            ttk.Label(card, text="max proxies", style="Muted.TLabel").pack(side="left")
+            ttk.Entry(bar, textvariable=self.limit_var, width=8).pack(side="left", padx=(12, 4))
+            ttk.Label(bar, text="max checks", style="Muted.TLabel").pack(side="left")
+            self._build_sources(card)
         elif name == "Proxy List":
             self._build_table(frame)
         elif name == "Rotating Gateway":
@@ -171,13 +181,34 @@ class ProxyHunterApp(tk.Tk):
         else:
             card = self._card(frame, "About")
             for line in (
-                "ProxyHunter v3.1.1 — Desktop & Mobile Edition",
+                "ProxyHunter v3.1.2 — Desktop & Mobile Edition",
                 "Preserved v2/v3 async backend, six rotation modes, country filters.",
                 "Gateway: http://127.0.0.1:8080 (localhost by default).",
                 "No browser engine bundled. Lightweight Tkinter UI.",
             ):
                 ttk.Label(card, text=line, style="Card.TLabel").pack(anchor="w")
         return frame
+
+    def _build_sources(self, parent: ttk.Frame) -> None:
+        box = ttk.Frame(parent, style="Card.TFrame")
+        box.pack(fill="both", pady=8)
+        ttk.Label(box, text="Authorized proxy sources", style="Card.TLabel").pack(anchor="w")
+        self.source_tree = ttk.Treeview(box, columns=("name", "type", "enabled"), show="headings", height=6)
+        for col in ("name", "type", "enabled"):
+            self.source_tree.heading(col, text=col.title())
+        self.source_tree.column("name", width=220)
+        self.source_tree.pack(fill="x", side="left")
+        scroll = ttk.Scrollbar(box, orient="vertical", command=self.source_tree.yview)
+        self.source_tree.configure(yscrollcommand=scroll.set)
+        scroll.pack(side="right", fill="y")
+        actions = ttk.Frame(box, style="Card.TFrame")
+        actions.pack(fill="x")
+        ttk.Button(actions, text="Enable", command=lambda: self._run("source_on")).pack(side="left", padx=3)
+        ttk.Button(actions, text="Disable", command=lambda: self._run("source_off")).pack(side="left", padx=3)
+        ttk.Button(actions, text="Test connectivity", command=lambda: self._run("source_test")).pack(side="left", padx=3)
+        self.source_status = ttk.Label(actions, text="", style="Muted.TLabel")
+        self.source_status.pack(side="left", padx=8)
+        self._update_sources()
 
     def _build_table(self, frame: ttk.Frame) -> None:
         card = ttk.Frame(frame, style="Card.TFrame")
@@ -269,7 +300,20 @@ class ProxyHunterApp(tk.Tk):
     def _run(self, action: str, value: str = "") -> None:
         c = self.controller
         if action == "discover":
+            if hasattr(self, "worker_var"):
+                c.config["workers"]["count"] = max(1, min(500, int(self.worker_var.get() or 50)))
             coro = c.discover()
+        elif action in ("source_on", "source_off"):
+            selected = self.source_tree.selection() if hasattr(self, "source_tree") else ()
+            name = self.source_tree.item(selected[0], "values")[0] if selected else ""
+            if name:
+                c.toggle_source(name, action == "source_on")
+                self._update_sources()
+            return
+        elif action == "source_test":
+            self.source_test_future = self.worker.submit(c.source_diagnostics())
+            self.source_status.config(text="Testing sources…")
+            return
         elif action == "check":
             coro = c.check(limit=int(self.limit_var.get() or 0)) if hasattr(self, "limit_var") else c.check()
         elif action == "refresh":
@@ -378,6 +422,15 @@ class ProxyHunterApp(tk.Tk):
                 self.log_text.insert("end", data.get("message", "") + "\n")
                 self.log_text.see("end")
         self.pending = [f for f in self.pending if not f.done()]
+        source_future = getattr(self, "source_test_future", None)
+        if source_future is not None and source_future.done():
+            try:
+                results = source_future.result()
+                ok = sum(1 for item in results if item.get("reachable"))
+                self.source_status.config(text=f"{ok}/{len(results)} sources reachable")
+            except Exception as exc:  # noqa: BLE001
+                self.source_status.config(text=f"test failed: {exc}"[:80])
+            self.source_test_future = None
         self._update_stats()
         self._update_table()
         self._update_history()
@@ -388,6 +441,9 @@ class ProxyHunterApp(tk.Tk):
             s = self.controller.stats()
         except Exception:  # noqa: BLE001
             return
+        self.header.config(
+            text=f"Backend {s.get('backend', '-')} · Gateway {s.get('gateway', '-')} · Internet {s.get('internet', '-')}"
+        )
         for key, label in getattr(self, "stat_labels", {}).items():
             value = s.get(key)
             label.config(text="n/a" if value is None else str(value))
@@ -411,6 +467,17 @@ class ProxyHunterApp(tk.Tk):
                 p["host"], p["port"], p["protocol"], p.get("country_code", ""),
                 round(p.get("response_time_ms", 0)), "HEALTHY" if p.get("working") else "DEAD",
                 p.get("last_checked", ""),
+            ))
+
+    def _update_sources(self) -> None:
+        if not hasattr(self, "source_tree"):
+            return
+        for row in list(self.source_tree.get_children("")):
+            self.source_tree.delete(row)
+        for source in self.controller.sources():
+            self.source_tree.insert("", "end", values=(
+                source.get("name", ""), source.get("type", ""),
+                "yes" if source.get("enabled", True) else "no",
             ))
 
     def _update_history(self) -> None:
@@ -447,25 +514,35 @@ def selftest() -> None:
             app._show(section)
             app.update_idletasks()
         stats = app.controller.stats()
+        sources = app.controller.sources()
+        enabled = sum(1 for item in sources if item.get("enabled", True))
+        # Real discovery against configured authorized sources (bounded).
+        discovered = app.worker.submit(app.controller.discover()).result(timeout=240)
+        files = app.controller.export(str(app.export_dir), "working_proxies", formats=("txt", "csv", "json"))
         payload = {
-            "ok": True,
-            "version": "3.1.1",
+            "ok": bool(sources and enabled and len(discovered) > 0 and len(files) == 3),
+            "version": "3.1.2",
             "sections": list(SECTIONS),
             "endpoint": stats.get("endpoint"),
             "status": stats.get("status"),
             "backend": stats.get("backend"),
             "gateway": stats.get("gateway"),
             "internet": stats.get("internet"),
+            "sources_total": len(sources),
+            "sources_enabled": enabled,
+            "discovered": len(discovered),
+            "export_files": [item["name"] for item in files],
+            "config_path": str(__import__("proxyhunter.config", fromlist=["base_dir"]).base_dir()),
         }
     except Exception as exc:  # noqa: BLE001
-        payload = {"ok": False, "version": "3.1.1", "error": f"{type(exc).__name__}: {exc}"}
+        payload = {"ok": False, "version": "3.1.2", "error": f"{type(exc).__name__}: {exc}"}
     finally:
         try:
             app.on_close()
         except Exception:  # noqa: BLE001
             pass
         Path("selftest.json").write_text(json.dumps(payload, indent=2), encoding="utf-8")
-    print("ProxyHunter v3.1.1 selftest", "OK" if payload.get("ok") else payload.get("error"))
+    print("ProxyHunter v3.1.2 selftest", "OK" if payload.get("ok") else payload.get("error"))
 
 
 def main() -> None:

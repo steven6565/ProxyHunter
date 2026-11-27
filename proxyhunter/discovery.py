@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import copy
 import json
 import re
 from datetime import datetime
@@ -22,15 +23,28 @@ SOURCE_FILE = "sources.json"
 GITHUB_API = "https://api.github.com"
 
 
+def default_sources() -> dict:
+    from .default_sources import DEFAULT_SOURCES
+    return copy.deepcopy(DEFAULT_SOURCES)
+
+
 def load_sources(path: str | Path | None = None) -> dict:
     path = resolve_path(path or SOURCE_FILE)
     if not path.exists():
-        return {}
+        # First launch of a packaged app: create a valid, writable source file.
+        created = default_sources()
+        save_sources(created, path)
+        return created
     try:
         with open(path, "r", encoding="utf-8") as fh:
-            return json.load(fh)
-    except (OSError, json.JSONDecodeError):
-        return {}
+            data = json.load(fh)
+        if not isinstance(data, dict) or not data:
+            raise ValueError("empty source configuration")
+        return data
+    except (OSError, json.JSONDecodeError, ValueError):
+        created = default_sources()
+        save_sources(created, path)
+        return created
 
 
 def save_sources(data: dict, path: str | Path | None = None) -> None:
@@ -63,6 +77,53 @@ class Discovery:
                     item["_category"] = category
                     result.append(item)
         return result
+
+    def source_list(self) -> list[dict]:
+        result = []
+        for category, entries in self.sources_data.items():
+            if category.startswith("_") or not isinstance(entries, list):
+                continue
+            for entry in entries:
+                if isinstance(entry, dict):
+                    item = dict(entry)
+                    item["category"] = category
+                    result.append(item)
+        return result
+
+    def set_source_enabled(self, name: str, enabled: bool) -> bool:
+        for category, entries in self.sources_data.items():
+            if category.startswith("_") or not isinstance(entries, list):
+                continue
+            for entry in entries:
+                if isinstance(entry, dict) and entry.get("name") == name:
+                    entry["enabled"] = bool(enabled)
+                    save_sources(self.sources_data)
+                    return True
+        return False
+
+    async def check_sources(self) -> list[dict]:
+        """Bounded connectivity diagnostics for configured sources."""
+        import aiohttp
+        targets = [s for s in self.source_list() if s.get("url")]
+        results = []
+        timeout = aiohttp.ClientTimeout(total=6, connect=4)
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            for source in targets[:30]:
+                name = source.get("name", "?")
+                try:
+                    async with session.head(source["url"], allow_redirects=True) as response:
+                        results.append({
+                            "name": name, "enabled": bool(source.get("enabled", True)),
+                            "reachable": response.status < 500, "status": response.status,
+                            "error": "",
+                        })
+                except Exception as exc:  # noqa: BLE001
+                    results.append({
+                        "name": name, "enabled": bool(source.get("enabled", True)),
+                        "reachable": False, "status": 0,
+                        "error": f"{type(exc).__name__}: {exc}"[:160],
+                    })
+        return results
 
     def add_source(self, source: dict) -> None:
         """Add or update a user supplied source in the 'custom' section."""

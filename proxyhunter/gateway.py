@@ -270,6 +270,7 @@ class Gateway:
             self._log(f"Failed to bind {self.bind}:{self.port}: {exc}")
             return False
         self.metrics = GatewayMetrics()
+        self.metrics.last_refresh = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
         self.reload_pool()
         self.tasks = [
             asyncio.create_task(self._health_loop(), name="gateway-health"),

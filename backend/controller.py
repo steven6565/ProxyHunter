@@ -132,6 +132,15 @@ class BackendController:
     def countries(self) -> dict[str, int]:
         return self.gateway.available_countries()
 
+    def sources(self) -> list[dict]:
+        return Discovery(self.config, self.storage, self.metrics, self.dashboard).source_list()
+
+    def toggle_source(self, name: str, enabled: bool) -> bool:
+        return Discovery(self.config, self.storage, self.metrics, self.dashboard).set_source_enabled(name, enabled)
+
+    async def source_diagnostics(self) -> list[dict]:
+        return await Discovery(self.config, self.storage, self.metrics, self.dashboard).check_sources()
+
     def capacity(self) -> dict:
         return self.storage.capacity_report(float(self.config.get("validation_max_age_hours", 24)))
 
@@ -150,6 +159,7 @@ class BackendController:
             "dead": self.metrics.dead,
             "speed": self.metrics.speed(),
             "active_workers": self.metrics.active_workers,
+            "configured_workers": int(self.config.get("workers", {}).get("count", 50)),
             "avg_latency": self.metrics.avg_latency(),
             "cpu": cpu,
             "ram": ram,

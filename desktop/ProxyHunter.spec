@@ -12,7 +12,8 @@ a = Analysis(
     [os.path.join(HERE, "app.py")],
     pathex=[ROOT, os.path.join(ROOT, "backend"), os.path.join(ROOT, "shared")],
     binaries=[],
-    datas=[(ICON, "assets")],
+    datas=[(ICON, "assets"), (os.path.join(ROOT, "sources.json"), "."),
+           (os.path.join(ROOT, "config.json"), ".")],
     hiddenimports=[
         # Backend + shared engine
         "backend", "backend.controller", "shared", "shared.exports",
@@ -25,7 +26,7 @@ a = Analysis(
         "aiohttp", "aiohttp_socks", "python_socks", "bs4",
         "rich", "rich.console", "rich.live", "rich.panel", "rich.table",
         "rich.progress", "rich.prompt", "rich.text",
-        "geoip2", "maxminddb",
+        "geoip2", "maxminddb", "psutil",
         "tkinter", "_tkinter", "tkinter.ttk", "tkinter.filedialog",
         "tkinter.messagebox", "pystray", "PIL", "PIL.Image", "PIL.ImageDraw",
         "sqlite3", "ssl", "asyncio",

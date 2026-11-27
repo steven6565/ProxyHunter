@@ -5,6 +5,7 @@ from __future__ import annotations
 import copy
 import json
 import os
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -99,8 +100,28 @@ DEFAULT_CONFIG: dict[str, Any] = {
 
 
 def base_dir() -> Path:
-    """Absolute path of the ProxyHunter project directory."""
-    return Path(__file__).resolve().parent.parent
+    """Writable data directory.
+
+    Source checkouts keep using the project folder. Packaged Windows EXEs and
+    the Android app use a writable user directory so config, sources, SQLite
+    and exports survive restarts without needing the repository.
+    """
+    source_root = Path(__file__).resolve().parent.parent
+    packaged = bool(getattr(sys, "frozen", False)) or (
+        os.path.exists("/system/build.prop") and not (source_root / "sources.json").exists()
+    )
+    if not packaged:
+        return source_root
+    override = os.environ.get("PROXYHUNTER_HOME")
+    if override:
+        root = Path(override)
+    elif os.name == "nt":
+        root = Path(os.environ.get("APPDATA") or str(Path.home())) / "ProxyHunter"
+    else:
+        root = Path.home() / "ProxyHunter"
+    root.mkdir(parents=True, exist_ok=True)
+    (root / "output" / "logs").mkdir(parents=True, exist_ok=True)
+    return root
 
 
 def resolve_path(path: str | Path) -> Path:

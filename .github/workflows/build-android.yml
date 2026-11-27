@@ -38,7 +38,7 @@ jobs:
           SIZE=$(stat -c%s "$APK")
           echo "APK size: $SIZE bytes"
           if [ "$SIZE" -lt 1000000 ]; then echo "APK too small"; exit 1; fi
-          cp "$APK" builds/ProxyHunter_v3.1.1_Android.apk
+          cp "$APK" builds/ProxyHunter_v3.1.2_Android.apk
           TEST_APK=$(find android/app/build/outputs/apk/androidTest -name '*androidTest*.apk' | head -1)
           test -f "$TEST_APK" || { echo "instrumentation APK missing"; exit 1; }
       - name: Package APKs for emulator test
@@ -50,13 +50,13 @@ jobs:
       - name: Upload APKs for emulator test
         uses: actions/upload-artifact@v4
         with:
-          name: ProxyHunter-v3.1.1-apks
+          name: ProxyHunter-v3.1.2-apks
           path: builds/apks/*.apk
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: ProxyHunter-v3.1.1-Android
-          path: builds/ProxyHunter_v3.1.1_Android.apk
+          name: ProxyHunter-v3.1.2-Android
+          path: builds/ProxyHunter_v3.1.2_Android.apk
       - name: Signing notice
         run: echo "Debug APK is signed with the Android debug key. Create an upload keystore for release signing."
 
@@ -67,7 +67,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
-          name: ProxyHunter-v3.1.1-apks
+          name: ProxyHunter-v3.1.2-apks
           path: apks
       - name: Installed-APK instrumentation test
         uses: reactivecircus/android-emulator-runner@v2
@@ -90,7 +90,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: ProxyHunter-v3.1.1-emulator-test
+          name: ProxyHunter-v3.1.2-emulator-test
           path: |
             emulator-test.txt
             logcat.txt
