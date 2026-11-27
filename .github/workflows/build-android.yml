@@ -27,9 +27,9 @@ jobs:
         uses: gradle/actions/setup-gradle@v3
         with:
           gradle-version: '8.7'
-      - name: Build debug APK
+      - name: Build app + instrumentation APKs
         working-directory: android
-        run: gradle assembleDebug --stacktrace --no-daemon
+        run: gradle assembleDebug assembleDebugAndroidTest --stacktrace --no-daemon
       - name: Verify APK is genuine
         run: |
           APK=$(find android/app/build/outputs/apk -name '*.apk' | head -1)
@@ -39,6 +39,19 @@ jobs:
           echo "APK size: $SIZE bytes"
           if [ "$SIZE" -lt 1000000 ]; then echo "APK too small"; exit 1; fi
           cp "$APK" builds/ProxyHunter_v3.1.1_Android.apk
+          TEST_APK=$(find android/app/build/outputs/apk/androidTest -name '*androidTest*.apk' | head -1)
+          test -f "$TEST_APK" || { echo "instrumentation APK missing"; exit 1; }
+      - name: Package APKs for emulator test
+        run: |
+          mkdir -p builds/apks
+          cp $(find android/app/build/outputs/apk -name 'app-debug.apk' | head -1) builds/apks/
+          cp $(find android/app/build/outputs/apk/androidTest -name '*androidTest*.apk' | head -1) builds/apks/
+          ls -l builds/apks
+      - name: Upload APKs for emulator test
+        uses: actions/upload-artifact@v4
+        with:
+          name: ProxyHunter-v3.1.1-apks
+          path: builds/apks/*.apk
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
@@ -54,8 +67,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
-          name: ProxyHunter-v3.1.1-Android
-          path: apk
+          name: ProxyHunter-v3.1.1-apks
+          path: apks
       - name: Installed-APK instrumentation test
         uses: reactivecircus/android-emulator-runner@v2
         with:
@@ -66,10 +79,13 @@ jobs:
           # The emulator action executes each script line in its own shell,
           # so every command below is self-contained on a single line.
           script: |
-            ls -R "$GITHUB_WORKSPACE/apk"
-            adb install -r "$GITHUB_WORKSPACE/apk/ProxyHunter_v3.1.1_Android.apk"
+            ls -R "$GITHUB_WORKSPACE/apks"
+            adb install -r "$GITHUB_WORKSPACE/apks/app-debug.apk"
+            adb install -r "$GITHUB_WORKSPACE/apks/app-debug-androidTest.apk"
             adb shell pm grant com.proxyhunter.app android.permission.POST_NOTIFICATIONS || true
-            adb shell am instrument -w -r -e package com.proxyhunter.app com.proxyhunter.app.test/androidx.test.runner.AndroidJUnitRunner | tee emulator-test.txt
+            adb shell am instrument -w -r -e package com.proxyhunter.app com.proxyhunter.app.test/androidx.test.runner.AndroidJUnitRunner > emulator-test.txt 2>&1
+            cat emulator-test.txt
+            grep -q "OK (" emulator-test.txt || { echo "INSTRUMENTATION_FAILED"; cat emulator-test.txt; exit 1; }
       - name: Upload emulator test evidence
         if: always()
         uses: actions/upload-artifact@v4
