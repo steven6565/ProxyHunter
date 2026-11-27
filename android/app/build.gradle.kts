@@ -5,6 +5,21 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
+// Chaquopy merges all Python source dirs into one flat tree: adding backend/
+// and shared/ directly would collide on __init__.py. Sync them into a single
+// generated tree with distinct package folders instead.
+val generatedPython = layout.buildDirectory.dir("generated/python")
+val syncPython by tasks.registering(Copy::class) {
+    from("src/main/python") { into("") }
+    from("../../proxyhunter") { into("proxyhunter") }
+    from("../../backend") { into("backend") }
+    from("../../shared") { into("shared") }
+    into(generatedPython)
+    exclude("**/__pycache__/**", "**/*.pyc")
+}
+tasks.matching { it.name.startsWith("merge") && it.name.endsWith("PythonSources") }
+    .configureEach { dependsOn(syncPython) }
+
 android {
     namespace = "com.proxyhunter.app"
     compileSdk = 35
@@ -34,12 +49,11 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
     kotlinOptions { jvmTarget = "17" }
-
 }
 
 chaquopy {
     defaultConfig {
-        version = "3.11"  // 3.12 has no armeabi-v7a runtime; 3.11 supports ARM64 + ARMv7
+        version = "3.11"  // supports both ARM64 and ARMv7
         pip {
             install("aiohttp")
             install("aiohttp-socks")
@@ -48,14 +62,7 @@ chaquopy {
         }
     }
     sourceSets {
-        getByName("main") {
-            srcDirs(
-                "src/main/python",
-                "../../backend",   // shared controller
-                "../../shared",    // shared export engine
-                "../../proxyhunter" // existing v2/v3 engine
-            )
-        }
+        getByName("main") { srcDirs(generatedPython.get().asFile.absolutePath) }
     }
 }
 
