@@ -20,11 +20,11 @@ $python = Join-Path $root ".venv-win\Scripts\python.exe"
 
 Write-Host "==> Building portable edition"
 Push-Location $desktop
-& $python -m PyInstaller --noconfirm --distpath $builds ProxyHunter.spec
+& $python -m PyInstaller --onefile --windowed --clean --noconfirm --distpath $builds ProxyHunter.spec
 Pop-Location
 
 Write-Host "==> Portable output: $builds\ProxyHunter_portable\ProxyHunter.exe"
-$exe = Join-Path $builds "ProxyHunter_portable\ProxyHunter.exe"
+$exe = Join-Path $builds "ProxyHunter.exe"
 if (-not (Test-Path $exe)) { throw "EXE was not produced" }
 Get-Item $exe | Select-Object Name, Length, LastWriteTime
 

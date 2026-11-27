@@ -63,14 +63,13 @@ jobs:
           arch: x86_64
           profile: pixel_2
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
+          # The emulator action executes each script line in its own shell,
+          # so every command below is self-contained on a single line.
           script: |
             ls -R "$GITHUB_WORKSPACE/apk"
-            APK=$(find "$GITHUB_WORKSPACE/apk" -type f -name '*.apk' | head -1)
-            echo "Installing APK: $APK"
-            adb install -r "$APK"
+            adb install -r "$GITHUB_WORKSPACE/apk/ProxyHunter_v3.1.1_Android.apk"
             adb shell pm grant com.proxyhunter.app android.permission.POST_NOTIFICATIONS || true
-            adb shell am instrument -w -r -e package com.proxyhunter.app \
-              com.proxyhunter.app.test/androidx.test.runner.AndroidJUnitRunner | tee emulator-test.txt
+            adb shell am instrument -w -r -e package com.proxyhunter.app com.proxyhunter.app.test/androidx.test.runner.AndroidJUnitRunner | tee emulator-test.txt
       - name: Upload emulator test evidence
         if: always()
         uses: actions/upload-artifact@v4

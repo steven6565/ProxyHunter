@@ -22,17 +22,20 @@ jobs:
       - name: Build portable EXE
         run: |
           cd desktop
-          python -m PyInstaller --noconfirm --distpath ../builds ProxyHunter.spec
+          python -m PyInstaller --onefile --windowed --clean --noconfirm --distpath ../builds ProxyHunter.spec
       - name: Smoke test EXE startup
         run: |
-          cd builds/ProxyHunter_portable
+          cd builds
           Start-Process -FilePath (Resolve-Path .\ProxyHunter.exe) -ArgumentList '--selftest' -Wait
           Start-Sleep -Seconds 2
           if (!(Test-Path selftest.json)) { throw 'Selftest marker missing' }
+          $result = Get-Content selftest.json -Raw | ConvertFrom-Json
+          if (-not $result.ok) { throw "GUI selftest failed: $($result.error)" }
+          Write-Host "Sections: $($result.sections -join ', ')"
           Get-Content selftest.json
       - name: Rename portable executable
         run: |
-          Copy-Item builds/ProxyHunter_portable/ProxyHunter.exe builds/ProxyHunter_v3.1.1_Windows.exe -Force
+          Copy-Item builds/ProxyHunter.exe builds/ProxyHunter_v3.1.1_Windows.exe -Force
           Get-Item builds/ProxyHunter_v3.1.1_Windows.exe | Format-List Name,Length
       - name: Install Inno Setup
         run: choco install innosetup -y --no-progress
@@ -46,7 +49,7 @@ jobs:
           if (!(Test-Path builds/ProxyHunter_v3.1.1_Setup.exe)) { throw 'Setup.exe missing' }
           Get-Item builds/ProxyHunter_v3.1.1_Setup.exe | Format-List Name,Length
       - name: Package portable ZIP
-        run: Compress-Archive -Path builds/ProxyHunter_portable/* -DestinationPath builds/ProxyHunter_v3.1.1_Windows_portable.zip -Force
+        run: Compress-Archive -Path builds/ProxyHunter_v3.1.1_Windows.exe -DestinationPath builds/ProxyHunter_v3.1.1_Windows_portable.zip -Force
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:

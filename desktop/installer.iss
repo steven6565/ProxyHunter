@@ -31,7 +31,7 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 Name: "startup"; Description: "Launch ProxyHunter when Windows starts"; GroupDescription: "Startup"; Flags: unchecked
 
 [Files]
-Source: "..\builds\ProxyHunter_portable\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "..\builds\ProxyHunter_v3.1.1_Windows.exe"; DestDir: "{app}"; DestName: "ProxyHunter.exe"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"

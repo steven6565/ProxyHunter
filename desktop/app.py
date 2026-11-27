@@ -93,7 +93,7 @@ class ProxyHunterApp(tk.Tk):
             self.nav.insert("", "end", text="  " + section, tags=(section,))
         self.nav.selection_set(self.nav.get_children()[0])
         self.nav.bind("<<TreeviewSelect>>", self._on_nav)
-        ttk.Label(side, text="v3.0 · local gateway", style="Muted.TLabel").pack(side="bottom", pady=14)
+        ttk.Label(side, text="v3.1.1 · local gateway", style="Muted.TLabel").pack(side="bottom", pady=14)
 
         self.content = ttk.Frame(self, padding=18)
         self.content.grid(row=0, column=1, sticky="nsew")
@@ -128,7 +128,7 @@ class ProxyHunterApp(tk.Tk):
                         "latency", "uptime", "last_refresh", "cpu", "ram"):
                 row = ttk.Frame(card, style="Card.TFrame")
                 row.pack(fill="x")
-                ttk.Label(row, text=key.replace("_", " ").title(), style="Muted.TLabel").pack(side="left", width=22)
+                ttk.Label(row, text=key.replace("_", " ").title(), style="Muted.TLabel", width=22).pack(side="left")
                 lbl = ttk.Label(row, text="-", style="Card.TLabel")
                 lbl.pack(side="left")
                 self.stat_labels[key] = lbl
@@ -171,7 +171,7 @@ class ProxyHunterApp(tk.Tk):
         else:
             card = self._card(frame, "About")
             for line in (
-                "ProxyHunter v3.0 — Desktop & Mobile Edition",
+                "ProxyHunter v3.1.1 — Desktop & Mobile Edition",
                 "Preserved v2/v3 async backend, six rotation modes, country filters.",
                 "Gateway: http://127.0.0.1:8080 (localhost by default).",
                 "No browser engine bundled. Lightweight Tkinter UI.",
@@ -207,7 +207,7 @@ class ProxyHunterApp(tk.Tk):
                     "active", "success", "failed", "current_ip", "latency"):
             row = ttk.Frame(card, style="Card.TFrame")
             row.pack(fill="x")
-            ttk.Label(row, text=key.replace("_", " ").title(), style="Muted.TLabel").pack(side="left", width=18)
+            ttk.Label(row, text=key.replace("_", " ").title(), style="Muted.TLabel", width=18).pack(side="left")
             lbl = ttk.Label(row, text="-", style="Card.TLabel")
             lbl.pack(side="left")
             self.gw_labels[key] = lbl
@@ -435,18 +435,37 @@ class ProxyHunterApp(tk.Tk):
 
 
 def selftest() -> None:
-    """CI smoke test: initialise the backend and write a marker file."""
-    from backend.controller import BackendController
-    controller = BackendController()
-    stats = controller.stats()
-    controller.close()
-    Path("selftest.json").write_text(json.dumps({
-        "ok": True,
-        "version": "3.1.1",
-        "endpoint": stats.get("endpoint"),
-        "status": stats.get("status"),
-    }, indent=2), encoding="utf-8")
-    print("ProxyHunter v3.0 selftest OK")
+    """CI smoke test: build every UI section and exercise backend startup."""
+    import time
+    app = ProxyHunterApp()
+    try:
+        app.withdraw()
+        app.update_idletasks()
+        time.sleep(1.0)  # let the background backend/gateway thread initialise
+        app.update_idletasks()
+        for section in SECTIONS:  # navigate every sidebar section
+            app._show(section)
+            app.update_idletasks()
+        stats = app.controller.stats()
+        payload = {
+            "ok": True,
+            "version": "3.1.1",
+            "sections": list(SECTIONS),
+            "endpoint": stats.get("endpoint"),
+            "status": stats.get("status"),
+            "backend": stats.get("backend"),
+            "gateway": stats.get("gateway"),
+            "internet": stats.get("internet"),
+        }
+    except Exception as exc:  # noqa: BLE001
+        payload = {"ok": False, "version": "3.1.1", "error": f"{type(exc).__name__}: {exc}"}
+    finally:
+        try:
+            app.on_close()
+        except Exception:  # noqa: BLE001
+            pass
+        Path("selftest.json").write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    print("ProxyHunter v3.1.1 selftest", "OK" if payload.get("ok") else payload.get("error"))
 
 
 def main() -> None:
