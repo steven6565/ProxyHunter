@@ -1,4 +1,4 @@
-name: Build Windows v3.0 (portable + setup)
+name: Build Windows v3.1.2 (portable + setup)
 
 on:
   workflow_dispatch:

@@ -18,8 +18,9 @@ HIDDEN = [
     "backend", "backend.controller", "shared", "shared.exports",
     "proxyhunter.checker", "proxyhunter.config", "proxyhunter.dashboard",
     "proxyhunter.discovery", "proxyhunter.gateway", "proxyhunter.geo",
-    "proxyhunter.logging_utils", "proxyhunter.models", "proxyhunter.resources",
-    "proxyhunter.security", "proxyhunter.storage", "proxyhunter.utils",
+    "proxyhunter.logging_utils", "proxyhunter.models", "proxyhunter.net",
+    "proxyhunter.resources", "proxyhunter.security", "proxyhunter.storage",
+    "proxyhunter.utils", "certifi",
     "aiohttp", "aiohttp_socks", "python_socks", "bs4",
     "rich", "rich.console", "rich.live", "rich.panel", "rich.table",
     "rich.progress", "rich.prompt", "rich.text",
@@ -41,6 +42,7 @@ args = [
     "--paths", str(ROOT / "shared"),
     "--add-data", f"{ROOT / 'sources.json'};.",
     "--add-data", f"{ROOT / 'config.json'};.",
+    "--collect-data", "certifi",
 ]
 for module in HIDDEN:
     args += ["--hidden-import", module]
