@@ -6,6 +6,8 @@ import asyncio
 import socket
 import threading
 import time
+
+import aiohttp
 from collections import deque
 from typing import Callable, Iterable
 
@@ -13,10 +15,10 @@ from proxyhunter import __version__
 from proxyhunter.checker import Checker
 from proxyhunter.config import WORKER_PRESETS, load_config, save_config
 from proxyhunter.dashboard import Metrics
-from proxyhunter.discovery import Discovery
+from proxyhunter.discovery import Discovery, load_sources, save_sources
 from proxyhunter.gateway import Gateway, ROTATION_MODES
 from proxyhunter.geo import GeoResolver
-from proxyhunter.models import Proxy
+from proxyhunter.models import Proxy, utc_now
 from proxyhunter.resources import ResourceMonitor
 from proxyhunter.storage import Storage
 from proxyhunter.utils import deduplicate, parse_proxy
@@ -58,6 +60,7 @@ class BackendController:
         self.stop_event = asyncio.Event()
         self.dashboard = BridgeDashboard(self.emit)
         self.gateway = Gateway(self.config, self.storage, self.geo, self.events)
+        self.gateway.metrics.last_refresh = utc_now()
         self.started = time.monotonic()
         self._network_checked = 0.0
         self._network_ok = False
@@ -70,7 +73,9 @@ class BackendController:
             self.on_event(kind, data)
 
     # --------------------------------------------------------------- operations
-    async def discover(self) -> list[Proxy]:
+    async def discover(self, workers: int | None = None) -> list[Proxy]:
+        if workers:
+            self.config["workers"]["count"] = max(1, min(500, int(workers)))
         self.operation = "discovery"
         self.progress = 0.0
         self.emit("discovery", {"phase": "start"})
@@ -144,11 +149,63 @@ class BackendController:
     def capacity(self) -> dict:
         return self.storage.capacity_report(float(self.config.get("validation_max_age_hours", 24)))
 
+    # ------------------------------------------------------------ source admin
+    def sources(self) -> list[dict]:
+        data = load_sources()
+        result: list[dict] = []
+        for category, entries in data.items():
+            if category.startswith("_") or not isinstance(entries, list):
+                continue
+            for source in entries:
+                if isinstance(source, dict):
+                    result.append({
+                        "name": str(source.get("name", "")),
+                        "category": category,
+                        "type": str(source.get("type", "raw")),
+                        "url": str(source.get("url") or source.get("query") or ""),
+                        "enabled": bool(source.get("enabled", True)),
+                    })
+        return result
+
+    def set_source(self, name: str, enabled: bool) -> bool:
+        data = load_sources()
+        found = False
+        for category, entries in data.items():
+            if not isinstance(entries, list):
+                continue
+            for source in entries:
+                if isinstance(source, dict) and source.get("name") == name:
+                    source["enabled"] = bool(enabled)
+                    found = True
+        if found:
+            save_sources(data)
+        return found
+
+    async def test_source(self, name: str) -> dict:
+        for source in self.sources():
+            if source["name"] != name or not source["url"].startswith("http"):
+                continue
+            started = time.perf_counter()
+            try:
+                timeout = aiohttp.ClientTimeout(total=12)
+                async with aiohttp.ClientSession(timeout=timeout) as session:
+                    async with session.get(source["url"]) as response:
+                        body = await response.read()
+                return {
+                    "name": name, "status": response.status, "bytes": len(body),
+                    "latency_ms": round((time.perf_counter() - started) * 1000, 1),
+                    "ok": response.status == 200,
+                }
+            except Exception as exc:  # noqa: BLE001
+                return {"name": name, "ok": False, "error": f"{type(exc).__name__}: {exc}"}
+        return {"name": name, "ok": False, "error": "source not found or non-HTTP source"}
+
     def stats(self) -> dict:
         cpu, ram, used_mb = self.resource_monitor.snapshot()
         snapshot = self.gateway.snapshot()
         snapshot.update({
             "version": __version__,
+            "status": "ONLINE",  # backend status; gateway has its own indicator
             "backend": "READY",
             "internet": "ONLINE" if self.connectivity() else "OFFLINE",
             "gateway": "ONLINE" if self.gateway.running else "OFFLINE",

@@ -28,7 +28,9 @@ class ProxyService : Service() {
         Thread {
             try {
                 Python.getInstance()
-                    .getModule("bridge").get("BridgeServer")?.callAttr("start", 8765)
+                    .getModule("bridge").get("BridgeServer")?.callAttr(
+                        "start", 8765, applicationContext.filesDir.absolutePath
+                    )
             } catch (e: Exception) {
                 updateNotification("Backend error: ${e.message ?: "unknown"}")
             }

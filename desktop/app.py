@@ -307,12 +307,16 @@ class ProxyHunterApp(tk.Tk):
             selected = self.source_tree.selection() if hasattr(self, "source_tree") else ()
             name = self.source_tree.item(selected[0], "values")[0] if selected else ""
             if name:
-                c.toggle_source(name, action == "source_on")
+                c.set_source(name, action == "source_on")
                 self._update_sources()
             return
         elif action == "source_test":
-            self.source_test_future = self.worker.submit(c.source_diagnostics())
-            self.source_status.config(text="Testing sources…")
+            selected = self.source_tree.selection() if hasattr(self, "source_tree") else ()
+            name = self.source_tree.item(selected[0], "values")[0] if selected else ""
+            if name:
+                self.source_test_future = self.worker.submit(c.test_source(name))
+                if hasattr(self, "source_status"):
+                    self.source_status.config(text=f"Testing {name}...")
             return
         elif action == "check":
             coro = c.check(limit=int(self.limit_var.get() or 0)) if hasattr(self, "limit_var") else c.check()
@@ -421,6 +425,21 @@ class ProxyHunterApp(tk.Tk):
             if kind == "log":
                 self.log_text.insert("end", data.get("message", "") + "\n")
                 self.log_text.see("end")
+        future = getattr(self, "source_test_future", None)
+        if future is not None and future.done():
+            try:
+                result = future.result()
+                if hasattr(self, "source_status"):
+                    text = f"{result.get('name')}: {'OK' if result.get('ok') else 'FAIL'}"
+                    if result.get("latency_ms") is not None:
+                        text += f" ({result['latency_ms']} ms)"
+                    if result.get("error"):
+                        text += f" — {result['error']}"
+                    self.source_status.config(text=text)
+            except Exception as exc:  # noqa: BLE001
+                if hasattr(self, "source_status"):
+                    self.source_status.config(text=f"source test error: {exc}")
+            self.source_test_future = None
         self.pending = [f for f in self.pending if not f.done()]
         source_future = getattr(self, "source_test_future", None)
         if source_future is not None and source_future.done():

@@ -150,7 +150,7 @@ class Handler(BaseHTTPRequestHandler):
             elif action == "discover":
                 workers = max(1, min(MAX_SAFE_WORKERS, int(params.get("workers", 50) or 50)))
                 controller.config["workers"]["count"] = workers
-                background(controller.discover())
+                background(controller.discover(workers=workers))
                 result = {"started": True, "workers": workers}
             elif action == "check":
                 limit = int(params.get("limit", 0) or 0)
@@ -173,6 +173,14 @@ class Handler(BaseHTTPRequestHandler):
                 result = {"ok": ok, "warning": warning}
             elif action == "gateway_mode":
                 result = {"ok": controller.gateway_set_mode(params.get("mode", "per_connection"))}
+            elif action == "sources":
+                result = {"sources": controller.sources()}
+            elif action == "source_set":
+                result = {"ok": controller.set_source(
+                    str(params.get("name", "")), bool(params.get("enabled", True))
+                )}
+            elif action == "source_test":
+                result = worker.submit(controller.test_source(str(params.get("name", "")))).result(timeout=30)
             elif action == "exports":
                 from shared.exports import export_history
                 result = {"files": export_history(params.get("directory", "/sdcard/Download/ProxyHunter"))}
@@ -199,10 +207,12 @@ class BridgeServer:
     """Entry point called from Kotlin via Chaquopy."""
 
     @staticmethod
-    def start(port: int = 8765) -> None:
+    def start(port: int = 8765, data_dir: str = "") -> None:
         global SERVER
         if SERVER is not None:
             return
+        if data_dir:
+            os.environ["PROXYHUNTER_HOME"] = str(data_dir)
         try:
             ensure_backend()
         except Exception:

@@ -14,7 +14,7 @@ from urllib.parse import quote
 import aiohttp
 from bs4 import BeautifulSoup
 
-from .config import resolve_path
+from .config import ensure_packaged_defaults, resolve_path
 from .logging_utils import RotatingFileLogger, safe_source_name
 from .models import Proxy
 from .utils import deduplicate, extract_proxies, normalize_country_code, normalize_protocol, parse_proxy
@@ -29,6 +29,7 @@ def default_sources() -> dict:
 
 
 def load_sources(path: str | Path | None = None) -> dict:
+    ensure_packaged_defaults()
     path = resolve_path(path or SOURCE_FILE)
     if not path.exists():
         # First launch of a packaged app: create a valid, writable source file.

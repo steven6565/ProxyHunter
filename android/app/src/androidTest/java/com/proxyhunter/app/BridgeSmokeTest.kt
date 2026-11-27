@@ -32,7 +32,7 @@ class BridgeSmokeTest {
     fun bridgeReadyDiscoveryValidationAndExport() {
         assertTrue("bridge never became ready: ${BridgeClient.health()}", BridgeClient.waitForBridge(90_000))
         val health = BridgeClient.health()
-        assertEquals("3.1.1", health.optString("version"))
+        assertEquals("3.1.2", health.optString("version"))
         assertEquals("READY", health.optString("backend"))
 
         val start = BridgeClient.action("discover", mapOf("workers" to 10))

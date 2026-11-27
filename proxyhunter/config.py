@@ -9,6 +9,13 @@ import sys
 from pathlib import Path
 from typing import Any
 
+def is_frozen() -> bool:
+    """True in PyInstaller EXE or Android/Chaquopy packaging."""
+    return bool(getattr(sys, "frozen", False)) or bool(getattr(sys, "_MEIPASS", None)) or bool(
+        os.environ.get("PROXYHUNTER_HOME")
+    ) or (os.path.exists("/system/build.prop") and not (Path(__file__).resolve().parent.parent / "sources.json").exists())
+
+
 WORKER_PRESETS = {
     "low": 10,
     "normal": 50,
@@ -48,7 +55,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "remove_expired_hours": 24,
     },
     "log_level": "INFO",
-    "user_agent": "Mozilla/5.0 (compatible; ProxyHunter/3.0; +https://github.com)",
+    "user_agent": "Mozilla/5.0 (compatible; ProxyHunter/3.1.2; +https://github.com)",
     "github_token": "",  # optional, raises GitHub API rate limits
     "gateway": {
         "auto_start": True,
@@ -122,6 +129,36 @@ def base_dir() -> Path:
     root.mkdir(parents=True, exist_ok=True)
     (root / "output" / "logs").mkdir(parents=True, exist_ok=True)
     return root
+
+
+def bundle_dir() -> Path:
+    """Directory containing read-only files bundled by PyInstaller/Chaquopy."""
+    meipass = getattr(sys, "_MEIPASS", None)
+    if meipass:
+        return Path(str(meipass))
+    return Path(__file__).resolve().parent.parent
+
+
+def ensure_packaged_defaults() -> None:
+    """Seed a fresh writable app-data dir with the bundled sample files."""
+    if not is_frozen():
+        return
+    source = bundle_dir()
+    target = base_dir()
+    for name in ("config.json", "sources.json"):
+        destination = target / name
+        if destination.exists():
+            continue
+        bundled = source / name
+        try:
+            if bundled.is_file():
+                destination.write_bytes(bundled.read_bytes())
+            elif name == "config.json":
+                save_config(copy.deepcopy(DEFAULT_CONFIG), destination)
+            else:
+                destination.write_text('{"custom": []}\n', encoding="utf-8")
+        except OSError:
+            pass
 
 
 def resolve_path(path: str | Path) -> Path:
@@ -329,6 +366,7 @@ def migrate_config(data: dict) -> dict:
 
 
 def load_config(path: str | Path | None = None) -> dict:
+    ensure_packaged_defaults()
     path = resolve_path(path or "config.json")
     if not path.exists():
         cfg = copy.deepcopy(DEFAULT_CONFIG)
