@@ -64,22 +64,33 @@ def ensure_backend():
 
         CONTROLLER = BackendController()
         WORKER = BackendWorker(CONTROLLER)
-        # Automatic local gateway startup (never exposed publicly by default).
         try:
             if CONTROLLER.config.get("gateway", {}).get("auto_start", True):
                 WORKER.submit(CONTROLLER.gateway_start()).result(timeout=20)
         except Exception as exc:  # noqa: BLE001
             STARTUP_ERROR = f"gateway start: {type(exc).__name__}: {exc}"
+        else:
+            for target in (
+                Path("/sdcard/Download/ProxyHunter/backend_error.txt"),
+                Path(os.environ.get("PROXYHUNTER_HOME", "")) / "backend_error.txt",
+            ):
+                try:
+                    target.unlink(missing_ok=True)
+                except OSError:
+                    pass
         return CONTROLLER, WORKER
     except Exception as exc:  # noqa: BLE001
         STARTUP_ERROR = f"{type(exc).__name__}: {exc}\n{traceback.format_exc()[-1500:]}"
-        try:
-            Path("/sdcard/Download/ProxyHunter/backend_error.txt").parent.mkdir(parents=True, exist_ok=True)
-            Path("/sdcard/Download/ProxyHunter/backend_error.txt").write_text(STARTUP_ERROR)
-        except OSError:
-            pass
+        for target in (
+            Path("/sdcard/Download/ProxyHunter/backend_error.txt"),
+            Path(os.environ.get("PROXYHUNTER_HOME", "")) / "backend_error.txt",
+        ):
+            try:
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_text(STARTUP_ERROR)
+            except OSError:
+                pass
         raise RuntimeError(STARTUP_ERROR) from exc
-
 
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, *args) -> None:
@@ -97,8 +108,7 @@ class Handler(BaseHTTPRequestHandler):
         if self.path == "/health":
             self._send({
                 "ok": CONTROLLER is not None and not STARTUP_ERROR,
-                "ready": CONTROLLER is not None and not STARTUP_ERROR
-                         and CONTROLLER.gateway.running,
+                "ready": CONTROLLER is not None and not STARTUP_ERROR,
                 "version": "3.1.2",
                 "backend": "READY" if CONTROLLER is not None else "ERROR",
                 "gateway": "ONLINE" if CONTROLLER and CONTROLLER.gateway.running else "OFFLINE",

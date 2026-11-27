@@ -24,15 +24,25 @@ class ProxyService : Service() {
             return START_NOT_STICKY
         }
         createChannel()
+        android.util.Log.i("ProxyHunter", "ProxyService starting")
         startForeground(NOTIFICATION_ID, notification("Backend ready"))
         Thread {
             try {
+                android.util.Log.i("ProxyHunter", "Starting Chaquopy bridge...")
                 Python.getInstance()
                     .getModule("bridge").get("BridgeServer")?.callAttr(
                         "start", 8765, applicationContext.filesDir.absolutePath
                     )
+                android.util.Log.i("ProxyHunter", "Bridge start returned")
             } catch (e: Exception) {
+                android.util.Log.e("ProxyHunter", "Bridge startup failed", e)
                 updateNotification("Backend error: ${e.message ?: "unknown"}")
+                try {
+                    applicationContext.filesDir.resolve("backend_error.txt").writeText(
+                        "${e::class.simpleName}: ${e.message}\n${e.stackTraceToString()}"
+                    )
+                } catch (_: Exception) {
+                }
             }
         }.start()
         return START_STICKY
