@@ -14,7 +14,9 @@ a = Analysis(
     binaries=[],
     datas=[],
     hiddenimports=[
-        "aiohttp", "aiohttp_socks", "python_socks", "bs4", "geoip2",
+        "aiohttp", "aiohttp_socks", "python_socks", "bs4", "geoip2", "maxminddb",
+        "rich", "rich.console", "rich.live", "rich.panel", "rich.table",
+        "rich.progress", "rich.prompt", "rich.text",
         "backend.controller", "shared.exports", "proxyhunter.gateway",
         "proxyhunter.security", "proxyhunter.storage",
     ],
