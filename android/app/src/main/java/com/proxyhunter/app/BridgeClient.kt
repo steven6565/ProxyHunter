@@ -7,7 +7,9 @@ import java.net.URL
 
 /** Local JSON bridge to the embedded Python backend (Chaquopy). */
 object BridgeClient {
-    private const val BASE = "http://127.0.0.1:8765"
+    // "localhost" is a loopback hostname matched by network_security_config;
+    // the gateway endpoint itself remains 127.0.0.1:8080 in the backend.
+    private const val BASE = "http://localhost:8765"
 
     private fun request(path: String, method: String = "GET", body: String? = null): String {
         val connection = URL(BASE + path).openConnection() as HttpURLConnection
@@ -31,7 +33,7 @@ object BridgeClient {
     fun healthy(): Boolean = health().optBoolean("ok", false)
 
     /** Poll until the Python bridge and local gateway are ready. */
-    fun waitForBridge(timeoutMs: Long = 20_000): Boolean {
+    fun waitForBridge(timeoutMs: Long = 45_000): Boolean {
         val deadline = SystemClock.elapsedRealtime() + timeoutMs
         while (SystemClock.elapsedRealtime() < deadline) {
             val h = health()

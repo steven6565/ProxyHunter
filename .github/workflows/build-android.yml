@@ -85,10 +85,12 @@ jobs:
             adb shell pm grant com.proxyhunter.app android.permission.POST_NOTIFICATIONS || true
             adb shell am instrument -w -r -e package com.proxyhunter.app com.proxyhunter.app.test/androidx.test.runner.AndroidJUnitRunner > emulator-test.txt 2>&1
             cat emulator-test.txt
-            grep -q "OK (" emulator-test.txt || { echo "INSTRUMENTATION_FAILED"; cat emulator-test.txt; exit 1; }
+            grep -q "OK (" emulator-test.txt || { echo "INSTRUMENTATION_FAILED"; adb logcat -d -t 400 > logcat.txt; cat logcat.txt; cat emulator-test.txt; exit 1; }
       - name: Upload emulator test evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: ProxyHunter-v3.1.1-emulator-test
-          path: emulator-test.txt
+          path: |
+            emulator-test.txt
+            logcat.txt
