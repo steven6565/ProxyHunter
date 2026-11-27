@@ -1,0 +1,12 @@
+# Core (installed automatically by main.py / install.sh)
+aiohttp>=3.9.0
+aiohttp-socks>=0.8.0
+python-socks>=2.5.0
+beautifulsoup4>=4.12.0
+rich>=13.7.0
+geoip2>=4.2.0
+
+# Optional: faster/broader system metrics on desktop platforms.
+# Termux/Android cannot build psutil from source; Proxy Hunter falls back to
+# /proc there, so this line is intentionally commented out.
+# psutil>=5.9.0

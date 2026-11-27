@@ -1,0 +1,60 @@
+{
+  "pool": 232,
+  "exits": [
+    {
+      "ip": "182.93.75.162",
+      "cc": "NP"
+    },
+    {
+      "ip": "103.87.81.86",
+      "cc": "ID"
+    },
+    {
+      "ip": "171.4.85.65",
+      "cc": "TH"
+    },
+    {
+      "ip": "202.146.230.102",
+      "cc": "ID"
+    },
+    {
+      "ip": "113.161.185.160",
+      "cc": "VN"
+    },
+    {
+      "ip": "182.93.75.162",
+      "cc": "NP"
+    },
+    {
+      "ip": "14.232.166.150",
+      "cc": "VN"
+    },
+    {
+      "ip": "154.18.220.190",
+      "cc": "MM"
+    }
+  ],
+  "distinct": 7,
+  "snapshot": {
+    "version": "2.0.0",
+    "status": "ONLINE",
+    "endpoint": "http://127.0.0.1:18081",
+    "country": "ALL",
+    "mode": "per_connection",
+    "total": 232,
+    "healthy": 232,
+    "failed": 0,
+    "quarantined": 0,
+    "unique_ips": 226,
+    "active": 0,
+    "current_ip": "154.18.220.190",
+    "latency": 2053.784094827586,
+    "success": 8,
+    "requests_failed": 0,
+    "rotations": 9,
+    "last_refresh": "never",
+    "last_health": "never",
+    "uptime": "00:00:12",
+    "capacity_warning": false
+  }
+}

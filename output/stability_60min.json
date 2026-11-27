@@ -1,0 +1,15 @@
+{
+  "status": "running",
+  "elapsed_s": 60,
+  "success": 860,
+  "failure": 0,
+  "success_rate": 1.0,
+  "samples": [
+    {
+      "elapsed_s": 60,
+      "success": 860,
+      "failure": 0,
+      "success_rate": 1.0
+    }
+  ]
+}

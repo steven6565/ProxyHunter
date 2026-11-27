@@ -1,0 +1,100 @@
+{
+  "config_version": 3,
+  "validation_max_age_hours": 24,
+  "workers": {
+    "preset": "normal",
+    "count": 50
+  },
+  "timeout_seconds": 8.0,
+  "connect_timeout_seconds": 5.0,
+  "retries": 1,
+  "rate_limit_per_second": 15.0,
+  "discovery_concurrency": 10,
+  "validation_endpoints": [
+    {
+      "url": "http://ip-api.com/json/?fields=status,country,countryCode,city,isp,query",
+      "type": "ipapi",
+      "weight": 3
+    },
+    {
+      "url": "https://api.ipify.org?format=json",
+      "type": "ipify",
+      "weight": 2
+    },
+    {
+      "url": "https://httpbin.org/get",
+      "type": "generic",
+      "weight": 1
+    }
+  ],
+  "export_format": "ip_port",
+  "protocol_filter": [
+    "http",
+    "https",
+    "socks4",
+    "socks5"
+  ],
+  "country_filter": [],
+  "max_proxies_to_check": 0,
+  "use_remote_geo": true,
+  "geoip_db_path": "",
+  "refresh_mode": {
+    "interval_minutes": 15.0,
+    "auto_discover": true,
+    "auto_recheck": true,
+    "remove_expired_hours": 24
+  },
+  "log_level": "INFO",
+  "user_agent": "Mozilla/5.0 (compatible; ProxyHunter/3.0; +https://github.com)",
+  "github_token": "",
+  "gateway": {
+    "bind": "127.0.0.1",
+    "port": 18081,
+    "country": "all",
+    "rotation_mode": "per_connection",
+    "rotation_seconds": 60,
+    "max_retries": 2,
+    "connect_timeout_seconds": 5.0,
+    "failure_threshold": 3,
+    "pool_refresh_minutes": 15,
+    "health_check_minutes": 5,
+    "health_batch_size": 50,
+    "refresh_check_limit": 200,
+    "max_pool_size": 0,
+    "allow_remote_access": false,
+    "auth": {
+      "enabled": false,
+      "username": "",
+      "password": "",
+      "salt": "",
+      "password_hash": "",
+      "iterations": 160000
+    },
+    "health": {
+      "quarantine_minutes": 15,
+      "recovery_batch_size": 20,
+      "max_consecutive_failures": 3,
+      "circuit_breaker_threshold": 5,
+      "circuit_cooldown_seconds": 60,
+      "backoff_base_seconds": 1.0,
+      "backoff_max_seconds": 30.0,
+      "max_upstream_age_hours": 24
+    },
+    "security": {
+      "ip_allowlist": [],
+      "destination_policy": "deny_private",
+      "destination_allowlist": [],
+      "allow_loopback": false,
+      "max_connections": 200,
+      "max_connections_per_user": 10,
+      "rate_limit_per_second": 0,
+      "session_ttl_minutes": 30,
+      "tls": {
+        "enabled": false,
+        "certfile": "",
+        "keyfile": ""
+      }
+    }
+  },
+  "_readme": "ProxyHunter v3.0. Gateway port 8080 on localhost by default. Loopback destinations are denied unless explicitly allowed. Credentials use PBKDF2."
+}

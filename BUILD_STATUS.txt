@@ -1,0 +1,8 @@
+ProxyHunter v3.0 — build artifact status (delivery environment: Android/Termux)
+
+ProxyHunter_v3.0_Android.apk      BLOCKED - no Android SDK / Gradle installed. Build via .github/workflows/build-android.yml.
+ProxyHunter_v3.0_Windows.exe      BLOCKED - no Windows toolchain / PyInstaller / tkinter here. Build via .github/workflows/build-windows.yml.
+ProxyHunter_v3.0_Setup.exe        BLOCKED - Inno Setup requires Windows. Built by the same workflow.
+ProxyHunter_v3.0_Source.zip       READY - complete updated source archive.
+
+No placeholder or fake APK/EXE files were created.

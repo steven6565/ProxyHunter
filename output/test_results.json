@@ -1,0 +1,202 @@
+{
+  "version": "3.0.0",
+  "timestamp": "2026-11-27T06:19:53Z",
+  "workspace": "/data/user/0/ai.antigem/files/usr/tmp/proxyhunter-v2-tests-dimhu_ls",
+  "results": [
+    {
+      "name": "01_python_syntax_compilation",
+      "status": "PASS",
+      "detail": "compiled 23 files"
+    },
+    {
+      "name": "02_dependency_installation",
+      "status": "PASS",
+      "detail": "imports missing=[], pip dry-run=ok"
+    },
+    {
+      "name": "03_application_startup",
+      "status": "PASS",
+      "detail": "version=3.0.0, config_version=3"
+    },
+    {
+      "name": "04_existing_feature_regression",
+      "status": "PASS",
+      "detail": "presets=True, sources=True, exports=True"
+    },
+    {
+      "name": "05_sqlite_integrity",
+      "status": "PASS",
+      "detail": "integrity_check=ok"
+    },
+    {
+      "name": "06_sqlite_migration",
+      "status": "PASS",
+      "detail": "v2, rows 45->45, health columns present=True"
+    },
+    {
+      "name": "07_gateway_startup",
+      "status": "PASS",
+      "detail": "endpoint=http://127.0.0.1:39985, running=True"
+    },
+    {
+      "name": "08_single_stable_endpoint",
+      "status": "PASS",
+      "detail": "same endpoint used for 9 requests; statuses=[200, 200, 200, 200, 200, 200, 200, 200, 200]"
+    },
+    {
+      "name": "09_per_connection_rotation",
+      "status": "PASS",
+      "detail": "distinct exit IPs=3 of 9: ['1.1.1.1', '8.8.8.8', '9.9.9.9', '1.1.1.1', '8.8.8.8', '9.9.9.9', '1.1.1.1', '8.8.8.8', '9.9.9.9']"
+    },
+    {
+      "name": "10_country_selection_accuracy",
+      "status": "PASS",
+      "detail": "US=True, IN=True, no-proxy ZZ status=502"
+    },
+    {
+      "name": "11_http_forwarding",
+      "status": "PASS",
+      "detail": "status=200, path=/check"
+    },
+    {
+      "name": "12_https_connect_tunnelling",
+      "status": "PASS",
+      "detail": "CONNECT 200 + tunnelled HTTP response received via local endpoint"
+    },
+    {
+      "name": "13_socks4_upstream",
+      "status": "PASS",
+      "detail": "(200, '208.67.222.222')"
+    },
+    {
+      "name": "14_socks5_upstream",
+      "status": "PASS",
+      "detail": "(200, '208.67.220.220')"
+    },
+    {
+      "name": "15_failed_proxy_handling",
+      "status": "PASS",
+      "detail": "status=502, quarantined=1"
+    },
+    {
+      "name": "16_proxy_recovery",
+      "status": "PASS",
+      "detail": "quarantined 2->1, {'checked': 1, 'recovered': 1, 'failed': 0}"
+    },
+    {
+      "name": "17_empty_pool_handling",
+      "status": "PASS",
+      "detail": "status=502, error=Bad gateway"
+    },
+    {
+      "name": "18_timeout_handling",
+      "status": "PASS",
+      "detail": "status=502, elapsed=1.01s"
+    },
+    {
+      "name": "19_authentication_and_hashing",
+      "status": "PASS",
+      "detail": "none=407, bad=407, valid=200, PBKDF2 verified=True, plaintext=''"
+    },
+    {
+      "name": "20_unauthorized_peer_rejection",
+      "status": "PASS",
+      "detail": "status=403"
+    },
+    {
+      "name": "21_restricted_destination_policy",
+      "status": "PASS",
+      "detail": "status=403"
+    },
+    {
+      "name": "22_background_health_monitoring",
+      "status": "PASS",
+      "detail": "{'checked': 1, 'recovered': 1, 'failed': 0}"
+    },
+    {
+      "name": "23_automatic_pool_refresh",
+      "status": "PASS",
+      "detail": "callback calls=1, last_refresh=2026-11-27T06:19:03Z"
+    },
+    {
+      "name": "24_graceful_shutdown",
+      "status": "PASS",
+      "detail": "stop waited 0.40s for active connection"
+    },
+    {
+      "name": "25_restart_and_persistence",
+      "status": "PASS",
+      "detail": "restarted=True, persisted proxies=1"
+    },
+    {
+      "name": "26_concurrency_benchmarks",
+      "status": "PASS",
+      "detail": "worst success rate=100.0%; 10:10/10@89.3rps; 50:50/50@69.2rps; 100:100/100@37.9rps; 200:200/200@62.0rps; 500:500/500@62.1rps"
+    },
+    {
+      "name": "27_memory_leak_check",
+      "status": "PASS",
+      "detail": "growth=0.06 MB over 200 requests"
+    },
+    {
+      "name": "28_fd_leak_check",
+      "status": "PASS",
+      "detail": "fds 21 -> 17"
+    },
+    {
+      "name": "30_long_duration_stability",
+      "status": "PASS",
+      "detail": "30s run, 933 successful requests, gateway running=True"
+    },
+    {
+      "name": "29_output_file_integrity",
+      "status": "PASS",
+      "detail": "txt=3, csv=3, json=3, report=3"
+    },
+    {
+      "name": "31_tls_listener",
+      "status": "PASS",
+      "detail": "TLS-wrapped request via gateway returned 200"
+    },
+    {
+      "name": "32_dns_and_loopback_security",
+      "status": "PASS",
+      "detail": "private=False, loopback-default=False, public=True, hostname=True, loopback-opt-in=True"
+    }
+  ],
+  "counts": {
+    "PASS": 32
+  },
+  "benchmarks": {
+    "10": {
+      "requests": 10,
+      "ok": 10,
+      "seconds": 0.11,
+      "rps": 89.3
+    },
+    "50": {
+      "requests": 50,
+      "ok": 50,
+      "seconds": 0.72,
+      "rps": 69.2
+    },
+    "100": {
+      "requests": 100,
+      "ok": 100,
+      "seconds": 2.64,
+      "rps": 37.9
+    },
+    "200": {
+      "requests": 200,
+      "ok": 200,
+      "seconds": 3.23,
+      "rps": 62.0
+    },
+    "500": {
+      "requests": 500,
+      "ok": 500,
+      "seconds": 8.05,
+      "rps": 62.1
+    }
+  }
+}

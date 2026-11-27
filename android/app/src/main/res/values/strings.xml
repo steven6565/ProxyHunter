@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">ProxyHunter</string>
+    <string name="channel_name">ProxyHunter background work</string>
+    <string name="channel_description">Discovery, validation and gateway status</string>
+    <string name="notification_title">ProxyHunter running</string>
+</resources>
