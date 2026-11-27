@@ -134,7 +134,7 @@ fun ProxiesScreen(proxies: List<UiProxy>, onCopy: (String) -> Unit) {
     }
 }
 
-private fun flag(code: String): String {
+fun flag(code: String): String {
     if (code.length != 2 || !code[0].isLetter() || !code[1].isLetter()) return ""
     // Unicode regional indicators produce the country flag without assets.
     val base = 0x1F1E6

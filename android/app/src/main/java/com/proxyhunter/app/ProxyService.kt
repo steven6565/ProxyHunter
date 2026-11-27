@@ -27,8 +27,8 @@ class ProxyService : Service() {
         startForeground(NOTIFICATION_ID, notification("Backend ready"))
         Thread {
             try {
-                Python.getInstance(applicationContext, "bridge")
-                    .getObject("BridgeServer").callAttr("start", 8765)
+                Python.getInstance()
+                    .getModule("bridge").get("BridgeServer").callAttr("start", 8765)
             } catch (e: Exception) {
                 updateNotification("Backend error: ${e.message ?: "unknown"}")
             }
@@ -65,8 +65,8 @@ class ProxyService : Service() {
 
     private fun stopBridge() {
         try {
-            Python.getInstance(applicationContext, "bridge")
-                .getObject("BridgeServer").callAttr("stop")
+            Python.getInstance()
+                .getModule("bridge").get("BridgeServer").callAttr("stop")
         } catch (_: Exception) {
         }
     }

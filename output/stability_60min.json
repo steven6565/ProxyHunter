@@ -1,9 +1,9 @@
 {
   "status": "running",
-  "elapsed_s": 2040,
-  "success": 25306,
+  "elapsed_s": 2340,
+  "success": 29526,
   "failure": 88,
-  "success_rate": 0.9965,
+  "success_rate": 0.997,
   "samples": [
     {
       "elapsed_s": 60,
@@ -208,6 +208,36 @@
       "success": 25306,
       "failure": 88,
       "success_rate": 0.9965
+    },
+    {
+      "elapsed_s": 2100,
+      "success": 26146,
+      "failure": 88,
+      "success_rate": 0.9966
+    },
+    {
+      "elapsed_s": 2160,
+      "success": 26990,
+      "failure": 88,
+      "success_rate": 0.9968
+    },
+    {
+      "elapsed_s": 2220,
+      "success": 27838,
+      "failure": 88,
+      "success_rate": 0.9968
+    },
+    {
+      "elapsed_s": 2280,
+      "success": 28682,
+      "failure": 88,
+      "success_rate": 0.9969
+    },
+    {
+      "elapsed_s": 2340,
+      "success": 29526,
+      "failure": 88,
+      "success_rate": 0.997
     }
   ]
 }
