@@ -1,9 +1,9 @@
 {
   "status": "running",
-  "elapsed_s": 2640,
-  "success": 33762,
-  "failure": 88,
-  "success_rate": 0.9974,
+  "elapsed_s": 3300,
+  "success": 40098,
+  "failure": 122,
+  "success_rate": 0.997,
   "samples": [
     {
       "elapsed_s": 60,
@@ -268,6 +268,72 @@
       "success": 33762,
       "failure": 88,
       "success_rate": 0.9974
+    },
+    {
+      "elapsed_s": 2700,
+      "success": 34614,
+      "failure": 88,
+      "success_rate": 0.9975
+    },
+    {
+      "elapsed_s": 2760,
+      "success": 35462,
+      "failure": 88,
+      "success_rate": 0.9975
+    },
+    {
+      "elapsed_s": 2820,
+      "success": 36258,
+      "failure": 88,
+      "success_rate": 0.9976
+    },
+    {
+      "elapsed_s": 2880,
+      "success": 36263,
+      "failure": 104,
+      "success_rate": 0.9971
+    },
+    {
+      "elapsed_s": 2940,
+      "success": 36320,
+      "failure": 113,
+      "success_rate": 0.9969
+    },
+    {
+      "elapsed_s": 3000,
+      "success": 36362,
+      "failure": 118,
+      "success_rate": 0.9968
+    },
+    {
+      "elapsed_s": 3060,
+      "success": 36718,
+      "failure": 122,
+      "success_rate": 0.9967
+    },
+    {
+      "elapsed_s": 3120,
+      "success": 37562,
+      "failure": 122,
+      "success_rate": 0.9968
+    },
+    {
+      "elapsed_s": 3180,
+      "success": 38406,
+      "failure": 122,
+      "success_rate": 0.9968
+    },
+    {
+      "elapsed_s": 3240,
+      "success": 39254,
+      "failure": 122,
+      "success_rate": 0.9969
+    },
+    {
+      "elapsed_s": 3300,
+      "success": 40098,
+      "failure": 122,
+      "success_rate": 0.997
     }
   ]
 }

@@ -1,8 +1,15 @@
-ProxyHunter v3.0 — build artifact status (delivery environment: Android/Termux)
+ProxyHunter v3.0 — final build artifact status
 
-ProxyHunter_v3.0_Android.apk      BLOCKED - no Android SDK / Gradle installed. Build via .github/workflows/build-android.yml.
-ProxyHunter_v3.0_Windows.exe      BLOCKED - no Windows toolchain / PyInstaller / tkinter here. Build via .github/workflows/build-windows.yml.
-ProxyHunter_v3.0_Setup.exe        BLOCKED - Inno Setup requires Windows. Built by the same workflow.
-ProxyHunter_v3.0_Source.zip       READY - complete updated source archive.
+GitHub repository: https://github.com/steven6565/ProxyHunter (private)
+Release tag: v3.0.0
 
-No placeholder or fake APK/EXE files were created.
+ProxyHunter_v3.0_Android.apk    BUILT - GitHub Actions run 45957372999 (success). 46,802,608 bytes. Valid ZIP APK with classes.dex + AndroidManifest.xml.
+ProxyHunter_v3.0_Windows.exe    BUILT - GitHub Actions run 45957889216 (success). 7,658,700 bytes. Valid PE32+ executable (MZ + PE header).
+ProxyHunter_v3.0_Setup.exe      BUILT - GitHub Actions run 45957889216 (success). 20,574,741 bytes. Valid PE32+ installer (MZ + PE header).
+ProxyHunter_v3.0_Source.zip     READY - complete updated source archive.
+
+CI smoke tests:
+- Windows EXE --selftest: PASS (backend initialised, selftest.json written by the built executable).
+- Android: compile/package verification PASS (APK contains classes.dex and manifest). Physical-device install/start: PENDING (no device/emulator in delivery environment).
+
+Signing: Android APK is debug-signed; Windows EXE/Setup are UNSIGNED (no code-signing certificate configured).

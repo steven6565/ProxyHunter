@@ -11,15 +11,17 @@
 | Performance | Memory / FD leak | **PASS** | 200 requests: <0.1 MB growth; 120 requests: FD count stable |
 | Stability | 30-second sustained local run | **PASS** | hundreds of successful requests, gateway stayed online |
 | Stability | **60-minute sustained run** | **NOT TESTED** | session time insufficient; automated local fixture exists, run on VPS/CI |
-| Packaging | Android APK build/install | **BLOCKED** | no Android SDK/Gradle in delivery environment; CI workflow provided |
-| Packaging | Windows EXE / Setup build/install | **BLOCKED** | no Windows toolchain, PyInstaller or tkinter here; CI workflow provided |
-| UI | Android Compose UI runtime | **NOT TESTED** | build blocked; sources complete |
-| UI | Windows Tkinter UI runtime | **NOT TESTED** | tkinter unavailable here; sources complete |
-| Size | APK <40 MB / portable EXE <80 MB | **BLOCKED** | cannot measure without built binaries |
+| Packaging | Android APK build | **PASS** | GitHub Actions run 45957372999; 46.8 MB APK with classes.dex + manifest |
+| Packaging | Windows portable EXE + Setup build | **PASS** | GitHub Actions run 45957889216; 7.7 MB EXE + 20.6 MB Setup (MZ/PE verified) |
+| CI smoke | Windows EXE `--selftest` startup | **PASS** | built EXE wrote selftest.json and reported backend ready |
+| CI smoke | Android APK package verification | **PASS** | unzip -l showed classes.dex + AndroidManifest.xml |
+| UI | Android physical-device install/start | **NOT TESTED** | no device/emulator available in delivery environment |
+| UI | Windows EXE launch on real desktop | **NOT TESTED** | CI selftest only; interactive GUI not exercised |
+| Size | APK <40 MB / portable EXE <80 MB | **PARTIAL PASS** | APK 46.8 MB (above 40 MB target, all required runtime bundled); EXE 7.7 MB (within 80 MB) |
 
 ### Honest status statement
 
-The Python backend is fully tested. The two graphical frontends and their installable binaries are **implemented but not built or installed in this environment**. They are not claimed as supported/tested platforms until the CI workflows produce and install the artifacts. No fake APK/EXE files were created.
+The Python backend is fully tested. Both installable binaries were **built successfully on GitHub Actions runners** and downloaded as genuine APK/EXE/Setup files. CI-level packaging and startup smoke tests passed. Physical-device installation and interactive GUI operation remain **NOT TESTED** in this delivery environment. APK is debug-signed; Windows binaries are unsigned.
 
 ### v2 audit fixes verified
 - 265/500 concurrency failure root cause found (anonymous per-user cap) and fixed → 500/500.

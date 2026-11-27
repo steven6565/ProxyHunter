@@ -2,18 +2,19 @@
 
 ## v3.0 verdict
 
-**BACKEND: PASS. PACKAGED DESKTOP/MOBILE APPS: CONDITIONAL / BLOCKED.**
+**BACKEND: PASS. PACKAGED APK/EXE: BUILT AND VERIFIED; DEVICE-LEVEL TESTS PENDING.**
 
 | Deliverable | Status |
 |---|---|
 | Python backend v3.0 (32 tests) | PASS |
 | CLI advanced mode | PASS (preserved and version-updated) |
-| Android Compose sources + build workflow | IMPLEMENTED; APK build **BLOCKED** here |
-| Windows Tkinter sources + PyInstaller/Inno Setup | IMPLEMENTED; EXE build **BLOCKED** here |
-| Installed/started Android app | NOT TESTED |
-| Installed/started Windows app | NOT TESTED |
-| 60-minute stability run | NOT TESTED |
-| Code signing | NOT DONE (unsigned by default; workflow documents signing) |
+| Android Compose APK | **BUILT via CI** (run 45957372999); genuine APK verified |
+| Windows EXE + Setup | **BUILT via CI** (run 45957889216); genuine PE binaries verified |
+| Windows EXE selftest on CI | PASS |
+| Installed/started Android app on physical device | NOT TESTED |
+| Interactive Windows GUI on real desktop | NOT TESTED |
+| 60-minute stability run | IN PROGRESS / see output/stability_60min.json (99.7% success at 54 min) |
+| Code signing | Android debug-signed; Windows unsigned |
 
 ### Security posture (v3)
 - Localhost gateway default; remote bind refused without PBKDF2 credentials + explicit flag.

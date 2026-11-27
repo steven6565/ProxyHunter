@@ -2,7 +2,7 @@
 
 > **v3.0 adds a native Kotlin/Jetpack Compose Android app, a lightweight Tkinter Windows desktop app, a shared backend controller, an export engine, and reproducible APK/EXE build workflows.** The proven Python backend and all v2 features are preserved. The CLI remains available as an advanced mode: `python3 main.py`.
 >
-> **Build honesty:** the delivery environment has no Android SDK/Gradle and no Windows/PyInstaller toolchain, so the APK/EXE were **not compiled here** (BLOCKED). Complete sources and GitHub Actions workflows are provided — see `BUILD_GUIDE.md`. No fake binaries were created.
+> **Build status:** the APK and EXE were compiled successfully by GitHub Actions (private repo `steven6565/ProxyHunter`, tag `v3.0.0`) and downloaded as genuine binaries. Android is debug-signed; Windows binaries are unsigned. Physical-device and interactive GUI tests remain pending — see `BUILD_STATUS.txt` and `TEST_REPORT.md`.
 
 ## v3.0 frontends
 
