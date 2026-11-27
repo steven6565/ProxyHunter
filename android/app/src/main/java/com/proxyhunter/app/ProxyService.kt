@@ -10,6 +10,7 @@ import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import com.chaquo.python.Python
+import com.chaquo.python.android.AndroidPlatform
 
 /** Foreground service hosting the embedded Python backend for background work. */
 class ProxyService : Service() {
@@ -30,7 +31,7 @@ class ProxyService : Service() {
             try {
                 android.util.Log.i("ProxyHunter", "Starting Chaquopy bridge...")
                 if (!Python.isStarted()) {
-                    Python.start(applicationContext)
+                    Python.start(AndroidPlatform(applicationContext))
                 }
                 Python.getInstance()
                     .getModule("bridge").get("BridgeServer")?.callAttr(
