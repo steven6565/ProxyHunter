@@ -26,7 +26,8 @@ jobs:
       - name: Smoke test EXE startup
         run: |
           cd builds/ProxyHunter_portable
-          .\ProxyHunter.exe --selftest
+          Start-Process -FilePath (Resolve-Path .\ProxyHunter.exe) -ArgumentList '--selftest' -Wait
+          Start-Sleep -Seconds 2
           if (!(Test-Path selftest.json)) { throw 'Selftest marker missing' }
           Get-Content selftest.json
       - name: Rename portable executable

@@ -39,7 +39,7 @@ android {
 
 chaquopy {
     defaultConfig {
-        version = "3.12"
+        version = "3.11"  // 3.12 has no armeabi-v7a runtime; 3.11 supports ARM64 + ARMv7
         pip {
             install("aiohttp")
             install("aiohttp-socks")
