@@ -37,18 +37,20 @@ class BridgeSmokeTest {
 
         val start = BridgeClient.action("discover", mapOf("workers" to 10))
         assertTrue("discover did not start: $start", start.optBoolean("started"))
-        assertTrue(
-            "no proxies discovered",
-            waitUntil(180_000) { BridgeClient.stats().optInt("discovered") > 0 }
-        )
+        if (!waitUntil(180_000) { BridgeClient.stats().optInt("discovered") > 0 }) {
+            val diagnostics = BridgeClient.action("source_diagnostics")
+            throw AssertionError(
+                "no proxies discovered: health=${BridgeClient.health()} " +
+                    "stats=${BridgeClient.stats()} diagnostics=$diagnostics"
+            )
+        }
         val discovered = BridgeClient.stats().optInt("discovered")
 
         val check = BridgeClient.action("check", mapOf("limit" to 5))
         assertTrue("check did not start: $check", check.optBoolean("started"))
-        assertTrue(
-            "no proxies checked",
-            waitUntil(180_000) { BridgeClient.stats().optInt("checked") > 0 }
-        )
+        if (!waitUntil(180_000) { BridgeClient.stats().optInt("checked") > 0 }) {
+            throw AssertionError("no proxies checked: stats=${BridgeClient.stats()}")
+        }
 
         val exported = BridgeClient.action(
             "export",

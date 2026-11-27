@@ -22,10 +22,22 @@ for entry in (ROOT, ROOT / "shared", ROOT / "backend"):
     if str(entry) not in sys.path:
         sys.path.insert(0, str(entry))
 
+# Chaquopy/Android does not expose the system CA store to OpenSSL.  Point it at
+# the certifi bundle that is installed with the app before any SSL context is
+# created; otherwise every HTTPS source fetch fails and discovery returns zero.
+try:
+    import certifi
+
+    os.environ.setdefault("SSL_CERT_FILE", certifi.where())
+    os.environ.setdefault("REQUESTS_CA_BUNDLE", certifi.where())
+except Exception:  # noqa: BLE001 - fall back to the platform trust store
+    pass
+
 CONTROLLER = None
 WORKER = None
 SERVER: ThreadingHTTPServer | None = None
 STARTUP_ERROR = ""
+GATEWAY_WARNING = ""
 TASKS: set = set()
 _LAST_NETWORK_CHECK = 0.0
 _NETWORK_OK = False
@@ -54,7 +66,7 @@ def _internet_ok() -> bool:
 
 def ensure_backend():
     """Initialise the controller once, recording any error instead of raising."""
-    global CONTROLLER, WORKER, STARTUP_ERROR
+    global CONTROLLER, WORKER, STARTUP_ERROR, GATEWAY_WARNING
     if CONTROLLER is not None and WORKER is not None:
         return CONTROLLER, WORKER
     if STARTUP_ERROR:
@@ -68,7 +80,9 @@ def ensure_backend():
             if CONTROLLER.config.get("gateway", {}).get("auto_start", True):
                 WORKER.submit(CONTROLLER.gateway_start()).result(timeout=20)
         except Exception as exc:  # noqa: BLE001
-            STARTUP_ERROR = f"gateway start: {type(exc).__name__}: {exc}"
+            # Gateway failure is not fatal: discovery/validation/export must
+            # still work.  Surface it separately instead of blocking the bridge.
+            GATEWAY_WARNING = f"gateway start: {type(exc).__name__}: {exc}"
         else:
             for target in (
                 Path("/sdcard/Download/ProxyHunter/backend_error.txt"),
@@ -110,10 +124,11 @@ class Handler(BaseHTTPRequestHandler):
                 "ok": CONTROLLER is not None and not STARTUP_ERROR,
                 "ready": CONTROLLER is not None and not STARTUP_ERROR,
                 "version": "3.1.2",
-                "backend": "READY" if CONTROLLER is not None else "ERROR",
+                "backend": "READY" if CONTROLLER is not None and not STARTUP_ERROR else "ERROR",
                 "gateway": "ONLINE" if CONTROLLER and CONTROLLER.gateway.running else "OFFLINE",
                 "internet": "ONLINE" if _internet_ok() else "OFFLINE",
                 "error": STARTUP_ERROR,
+                "gateway_warning": GATEWAY_WARNING,
             })
         else:
             self._send({"error": "not found"}, 404)
@@ -151,12 +166,18 @@ class Handler(BaseHTTPRequestHandler):
                 result = {"countries": controller.countries(), "capacity": controller.capacity()}
             elif action == "sources":
                 result = {"sources": controller.sources()}
+            elif action == "source_set":
+                result = {"ok": controller.set_source(
+                    str(params.get("name", "")), bool(params.get("enabled", True))
+                )}
             elif action == "source_toggle":
                 result = {"ok": controller.toggle_source(
                     str(params.get("name", "")), bool(params.get("enabled", True))
                 )}
-            elif action == "source_test":
+            elif action == "source_diagnostics":
                 result = {"sources": worker.submit(controller.source_diagnostics()).result(timeout=120)}
+            elif action == "source_test":
+                result = worker.submit(controller.test_source(str(params.get("name", "")))).result(timeout=30)
             elif action == "discover":
                 workers = max(1, min(MAX_SAFE_WORKERS, int(params.get("workers", 50) or 50)))
                 controller.config["workers"]["count"] = workers
@@ -183,14 +204,6 @@ class Handler(BaseHTTPRequestHandler):
                 result = {"ok": ok, "warning": warning}
             elif action == "gateway_mode":
                 result = {"ok": controller.gateway_set_mode(params.get("mode", "per_connection"))}
-            elif action == "sources":
-                result = {"sources": controller.sources()}
-            elif action == "source_set":
-                result = {"ok": controller.set_source(
-                    str(params.get("name", "")), bool(params.get("enabled", True))
-                )}
-            elif action == "source_test":
-                result = worker.submit(controller.test_source(str(params.get("name", "")))).result(timeout=30)
             elif action == "exports":
                 from shared.exports import export_history
                 result = {"files": export_history(params.get("directory", "/sdcard/Download/ProxyHunter"))}

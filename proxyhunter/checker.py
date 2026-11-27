@@ -13,9 +13,13 @@ import aiohttp
 from aiohttp_socks import ProxyConnector
 
 from .models import Proxy, utc_now
+from .net import configure_ca_bundle, make_ssl_context
 from .utils import is_public_ip
 
 IP_RE = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
+
+# Android/Chaquopy and frozen Windows builds may lack a system trust store.
+configure_ca_bundle()
 
 
 class RateLimiter:
@@ -94,7 +98,9 @@ class Checker:
             total=float(self.config.get("timeout_seconds", 8)),
             connect=float(self.config.get("connect_timeout_seconds", 5)),
         )
-        connector = aiohttp.TCPConnector(limit=self.workers * 2, ttl_dns_cache=300)
+        connector = aiohttp.TCPConnector(
+            limit=self.workers * 2, ttl_dns_cache=300, ssl=make_ssl_context()
+        )
         self.session = aiohttp.ClientSession(timeout=timeout, connector=connector)
         results: list[Proxy] = []
         buffer: list[Proxy] = []
@@ -132,7 +138,10 @@ class Checker:
         working = [p for p in results if p.working]
         missing_geo = [p.exit_ip for p in working if not p.country_code and p.exit_ip]
         if missing_geo and self.session is None:
-            self.session = aiohttp.ClientSession(timeout=timeout)
+            self.session = aiohttp.ClientSession(
+                timeout=timeout,
+                connector=aiohttp.TCPConnector(ssl=make_ssl_context()),
+            )
         if missing_geo:
             geo_map = await self.geo.resolve_batch(missing_geo, self.session)
             changed = []

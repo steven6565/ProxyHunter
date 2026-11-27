@@ -56,6 +56,7 @@ class BackendController:
         self.geo = GeoResolver(self.config, self.storage)
         self.metrics = Metrics()
         self.events: deque[str] = deque(maxlen=20)
+        self.log_lines: deque[str] = deque(maxlen=50)
         self.resource_monitor = ResourceMonitor()
         self.stop_event = asyncio.Event()
         self.dashboard = BridgeDashboard(self.emit)
@@ -69,6 +70,8 @@ class BackendController:
         self._refresh_callback_set = False
 
     def emit(self, kind: str, data: dict) -> None:
+        if kind == "log" and data.get("message"):
+            self.log_lines.append(str(data["message"])[:300])
         if kind in EVENTS:
             self.on_event(kind, data)
 
@@ -81,7 +84,9 @@ class BackendController:
         self.emit("discovery", {"phase": "start"})
         discovery = Discovery(self.config, self.storage, self.metrics, self.dashboard)
         proxies = await discovery.discover()
-        self.progress = 1.0
+        # Do not show a completed progress bar when discovery produced nothing:
+        # the UI must reflect real work, not just "the task returned".
+        self.progress = 1.0 if proxies else 0.0
         self.emit("discovery", {"phase": "done", "found": len(proxies)})
         self.operation = "idle"
         return proxies
@@ -137,9 +142,6 @@ class BackendController:
     def countries(self) -> dict[str, int]:
         return self.gateway.available_countries()
 
-    def sources(self) -> list[dict]:
-        return Discovery(self.config, self.storage, self.metrics, self.dashboard).source_list()
-
     def toggle_source(self, name: str, enabled: bool) -> bool:
         return Discovery(self.config, self.storage, self.metrics, self.dashboard).set_source_enabled(name, enabled)
 
@@ -187,8 +189,11 @@ class BackendController:
                 continue
             started = time.perf_counter()
             try:
+                from proxyhunter.net import make_ssl_context
+
                 timeout = aiohttp.ClientTimeout(total=12)
-                async with aiohttp.ClientSession(timeout=timeout) as session:
+                connector = aiohttp.TCPConnector(ssl=make_ssl_context())
+                async with aiohttp.ClientSession(timeout=timeout, connector=connector) as session:
                     async with session.get(source["url"]) as response:
                         body = await response.read()
                 return {
@@ -224,6 +229,10 @@ class BackendController:
             "uptime": int(time.monotonic() - self.started),
             "operation": self.operation,
             "progress": self.progress,
+            "sources_enabled": sum(
+                1 for source in self.sources() if source.get("enabled")
+            ),
+            "logs": list(self.log_lines)[-20:],
         })
         return snapshot
 

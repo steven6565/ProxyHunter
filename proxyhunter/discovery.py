@@ -17,10 +17,14 @@ from bs4 import BeautifulSoup
 from .config import ensure_packaged_defaults, resolve_path
 from .logging_utils import RotatingFileLogger, safe_source_name
 from .models import Proxy
+from .net import configure_ca_bundle, make_ssl_context
 from .utils import deduplicate, extract_proxies, normalize_country_code, normalize_protocol, parse_proxy
 
 SOURCE_FILE = "sources.json"
 GITHUB_API = "https://api.github.com"
+
+# Point OpenSSL at the bundled CA store before aiohttp creates a context.
+configure_ca_bundle()
 
 
 def default_sources() -> dict:
@@ -108,7 +112,8 @@ class Discovery:
         targets = [s for s in self.source_list() if s.get("url")]
         results = []
         timeout = aiohttp.ClientTimeout(total=6, connect=4)
-        async with aiohttp.ClientSession(timeout=timeout) as session:
+        connector = aiohttp.TCPConnector(ssl=make_ssl_context())
+        async with aiohttp.ClientSession(timeout=timeout, connector=connector) as session:
             for source in targets[:30]:
                 name = source.get("name", "?")
                 try:
@@ -158,7 +163,7 @@ class Discovery:
         sem = asyncio.Semaphore(max(1, int(self.config.get("discovery_concurrency", 10))))
         timeout = aiohttp.ClientTimeout(total=25, connect=8)
         headers = {"User-Agent": self.config.get("user_agent", "ProxyHunter/1.0"), "Accept": "*/*"}
-        connector = aiohttp.TCPConnector(limit=20, ttl_dns_cache=300)
+        connector = aiohttp.TCPConnector(limit=20, ttl_dns_cache=300, ssl=make_ssl_context())
 
         async with aiohttp.ClientSession(timeout=timeout, headers=headers, connector=connector) as session:
             tasks = [self._fetch_source(source, session, sem) for source in sources]
