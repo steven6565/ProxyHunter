@@ -20,7 +20,7 @@ $python = Join-Path $root ".venv-win\Scripts\python.exe"
 
 Write-Host "==> Building portable edition"
 Push-Location $desktop
-& $python -m PyInstaller --noconfirm --distpath (Join-Path $builds "ProxyHunter_portable") ProxyHunter.spec
+& $python -m PyInstaller --noconfirm --distpath $builds ProxyHunter.spec
 Pop-Location
 
 Write-Host "==> Portable output: $builds\ProxyHunter_portable\ProxyHunter.exe"

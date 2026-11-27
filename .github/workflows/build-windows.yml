@@ -22,7 +22,7 @@ jobs:
       - name: Build portable EXE
         run: |
           cd desktop
-          python -m PyInstaller --noconfirm --distpath ../builds/ProxyHunter_portable ProxyHunter.spec
+          python -m PyInstaller --noconfirm --distpath ../builds ProxyHunter.spec
       - name: Smoke test EXE startup
         run: |
           cd builds/ProxyHunter_portable

@@ -39,7 +39,6 @@ android {
 chaquopy {
     defaultConfig {
         version = "3.12"
-        abiFilters("arm64-v8a", "armeabi-v7a")
         pip {
             install("aiohttp")
             install("aiohttp-socks")
