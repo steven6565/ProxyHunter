@@ -64,7 +64,9 @@ jobs:
           profile: pixel_2
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
           script: |
-            APK=$(find apk -name '*.apk' | head -1)
+            ls -R "$GITHUB_WORKSPACE/apk"
+            APK=$(find "$GITHUB_WORKSPACE/apk" -type f -name '*.apk' | head -1)
+            echo "Installing APK: $APK"
             adb install -r "$APK"
             adb shell pm grant com.proxyhunter.app android.permission.POST_NOTIFICATIONS || true
             adb shell am instrument -w -r -e package com.proxyhunter.app \
