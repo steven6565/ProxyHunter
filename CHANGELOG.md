@@ -1,5 +1,24 @@
 # Changelog
 
+## v3.1.1 — Android cleartext + Windows runtime fixes (2026-11-27)
+
+### Android
+- Added `res/xml/network_security_config.xml`: cleartext permitted only for `localhost` / `127.0.0.1`, blocked externally; referenced from AndroidManifest.
+- Bridge URL switched to `http://localhost:8765` so Android NSC domain matching applies.
+- Lazy backend imports, `/health` readiness, retry/wait logic, port-conflict reuse, automatic gateway startup.
+- Home dashboard hides the localhost endpoint; Downloads navigation label shortened to "Files"; buttons use weighted rows.
+- Worker-selection dialog and async discovery preserved.
+
+### Windows
+- Fixed `TclError: bad option "-width"` by moving `width` from `.pack()` to the `ttk.Label` widget (2 sites); audited every `.pack()/.grid()/.place()` call.
+- Replaced onedir build with standalone **onefile** PyInstaller (`--onefile --windowed --clean`) via `desktop/build_windows.py`; python311.dll, Tcl/Tk and all dependencies embedded.
+- Rebuilt Inno Setup installer to reference the single onefile EXE.
+- CI selftest now builds all nine UI sections and verifies backend/gateway/internet.
+
+### Tests
+- Windows clean-runner EXE selftest: PASS.
+- Android emulator instrumentation: see TEST_REPORT.md for the current actual result (not assumed).
+
 ## v3.1.0 — Critical bug fixes (2026-11-27)
 
 ### Fixed

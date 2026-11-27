@@ -1,3 +1,21 @@
+# ProxyHunter v3.1.1 — Test Report (v3.0/3.1 baseline below)
+
+## v3.1.1 actual results
+
+| Test | Status | Evidence |
+|---|---|---|
+| Windows PyInstaller onefile build (`--onefile --windowed --clean`) | PASS | CI run 45986062386; 25.8 MB PE32+ EXE, 27.4 MB Setup |
+| Windows clean-runner EXE startup/GUI selftest | PASS | `selftest.json`: `ok:true`, version 3.1.1, all 9 sections built, backend READY, gateway ONLINE, internet ONLINE |
+| Tkinter geometry audit | PASS | two invalid `pack(width=...)` fixed; all geometry calls audited |
+| Android network security config | PASS (build) | `network_security_config.xml` referenced in manifest; cleartext only for localhost/127.0.0.1 |
+| Android installed-APK emulator instrumentation | SEE BELOW | run 45998883972; result being updated from artifact evidence |
+| Backend regression | PASS | 32/32 in `output/test_results.json` |
+| 60-minute stability (v3 baseline) | PASS | 99.725% success |
+
+Windows runtime errors reported by the user were reproduced from source code (`pack(width=22)`, `pack(width=18)`) and from the onedir DLL lookup; both fixes are verified on a clean Windows runner.
+
+---
+
 # ProxyHunter v3.1.0 — Test Report (v3.0 baseline below)
 
 ## Android Find Proxies crash — root cause and evidence

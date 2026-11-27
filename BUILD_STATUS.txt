@@ -1,14 +1,15 @@
-ProxyHunter v3.1.0 — critical bug-fix build status
+ProxyHunter v3.1.1 — build status
 
-GitHub repository: https://github.com/steven6565/ProxyHunter (private)
-Release tag: v3.1.0
+Repository: https://github.com/steven6565/ProxyHunter (private)
+Release tag: v3.1.1
 
-ProxyHunter_v3.1_Android.apk    BUILT — CI run 45965607649 (success). 49,454,472 bytes. Valid APK with classes.dex + manifest. Includes rich in Chaquopy pip.
-ProxyHunter_v3.1_Windows.exe    BUILT — CI run 45963805724 (success). 7,659,712 bytes. Valid PE32+, --selftest passed on runner.
-ProxyHunter_v3.1_Setup.exe      BUILT — CI run 45963805724 (success). 20,577,959 bytes. Valid PE32+ installer.
-ProxyHunter_v3.1_Source.zip     READY — complete corrected source.
+ProxyHunter_v3.1.1_Android.apk    BUILT — CI run 45998883972 android job. 64,372,798 bytes. Network security config permits cleartext only for localhost/127.0.0.1; bridge uses http://localhost:8765.
+ProxyHunter_v3.1.1_Windows.exe    BUILT — CI run 45986062386. 25,820,073 bytes. Standalone PyInstaller --onefile --windowed --clean; python311.dll + Tcl/Tk embedded (no system Python needed).
+ProxyHunter_v3.1.1_Setup.exe      BUILT — CI run 45986062386. 27,454,309 bytes. Inno Setup installer.
 
-Android physical-device install/start: NOT TESTED (no adb device attached in delivery environment).
-Interactive Windows desktop GUI: NOT TESTED (CI startup selftest only).
+Windows runtime tests (clean GitHub Windows runner):
+- EXE --selftest: PASS (ok:true, backend READY, gateway ONLINE, internet ONLINE, all 9 UI sections built).
+- Tkinter geometry audit: two invalid pack(width=...) calls fixed; all pack/grid/place calls audited.
 
+Android emulator test: see TEST_REPORT.md for the latest actual result.
 Signing: Android debug-signed; Windows unsigned.
