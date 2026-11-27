@@ -10,7 +10,7 @@ plugins {
 // generated tree with distinct package folders instead.
 val generatedPython = layout.buildDirectory.dir("generated/python")
 val syncPython by tasks.registering(Copy::class) {
-    from("src/main/python") { into("") }
+    from("../python") { into("") }
     from("../../proxyhunter") { into("proxyhunter") }
     from("../../backend") { into("backend") }
     from("../../shared") { into("shared") }

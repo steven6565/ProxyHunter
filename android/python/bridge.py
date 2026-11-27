@@ -12,7 +12,7 @@ import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[5]  # android/app/src/main/python -> project root
+ROOT = Path(__file__).resolve().parents[2]  # android/python -> project root
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "shared"))
 sys.path.insert(0, str(ROOT / "backend"))
