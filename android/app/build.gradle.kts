@@ -60,6 +60,7 @@ chaquopy {
             install("aiohttp-socks")
             install("beautifulsoup4")
             install("python-socks")
+            install("certifi")
             install("rich")          // backend.controller imports Rich for metrics
         }
     }
