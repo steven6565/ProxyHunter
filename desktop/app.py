@@ -518,7 +518,7 @@ def selftest() -> None:
         enabled = sum(1 for item in sources if item.get("enabled", True))
         # Real discovery against configured authorized sources (bounded).
         discovered = app.worker.submit(app.controller.discover()).result(timeout=240)
-        checked = app.worker.submit(app.controller.check(limit=10)).result(timeout=240)
+        checked = app.worker.submit(app.controller.check(discovered[:10])).result(timeout=240)
         files = app.controller.export(str(app.export_dir), "working_proxies", formats=("txt", "csv", "json"))
         payload = {
             "ok": bool(sources and enabled and len(discovered) > 0 and len(checked) > 0 and len(files) == 3),
