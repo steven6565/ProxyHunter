@@ -1,7 +1,7 @@
 {
   "version": "3.1.2",
-  "timestamp": "2026-11-27T18:43:21Z",
-  "workspace": "/data/user/0/ai.antigem/files/usr/tmp/proxyhunter-v2-tests-vjhq_m2j",
+  "timestamp": "2026-11-27T19:06:36Z",
+  "workspace": "/data/user/0/ai.antigem/files/usr/tmp/proxyhunter-v2-tests-_hmgi10g",
   "results": [
     {
       "name": "01_python_syntax_compilation",
@@ -36,7 +36,7 @@
     {
       "name": "07_gateway_startup",
       "status": "PASS",
-      "detail": "endpoint=http://127.0.0.1:40291, running=True"
+      "detail": "endpoint=http://127.0.0.1:41763, running=True"
     },
     {
       "name": "08_single_stable_endpoint",
@@ -116,7 +116,7 @@
     {
       "name": "23_automatic_pool_refresh",
       "status": "PASS",
-      "detail": "callback calls=1, last_refresh=2026-11-27T18:42:42Z"
+      "detail": "callback calls=1, last_refresh=2026-11-27T19:05:57Z"
     },
     {
       "name": "24_graceful_shutdown",
@@ -131,7 +131,7 @@
     {
       "name": "26_concurrency_benchmarks",
       "status": "PASS",
-      "detail": "worst success rate=100.0%; 10:10/10@181.1rps; 50:50/50@294.8rps; 100:100/100@230.6rps; 200:200/200@138.0rps; 500:500/500@158.3rps"
+      "detail": "worst success rate=100.0%; 10:10/10@175.1rps; 50:50/50@299.8rps; 100:100/100@215.8rps; 200:200/200@141.8rps; 500:500/500@191.2rps"
     },
     {
       "name": "27_memory_leak_check",
@@ -146,7 +146,7 @@
     {
       "name": "30_long_duration_stability",
       "status": "PASS",
-      "detail": "30s run, 876 successful requests, gateway running=True"
+      "detail": "30s run, 904 successful requests, gateway running=True"
     },
     {
       "name": "29_output_file_integrity",
@@ -162,41 +162,46 @@
       "name": "32_dns_and_loopback_security",
       "status": "PASS",
       "detail": "private=False, loopback-default=False, public=True, hostname=True, loopback-opt-in=True"
+    },
+    {
+      "name": "33_packaged_sources_seeding",
+      "status": "PASS",
+      "detail": "empty->15 enabled (rewritten=True), malformed->15, override_dir=True"
     }
   ],
   "counts": {
-    "PASS": 32
+    "PASS": 33
   },
   "benchmarks": {
     "10": {
       "requests": 10,
       "ok": 10,
       "seconds": 0.06,
-      "rps": 181.1
+      "rps": 175.1
     },
     "50": {
       "requests": 50,
       "ok": 50,
       "seconds": 0.17,
-      "rps": 294.8
+      "rps": 299.8
     },
     "100": {
       "requests": 100,
       "ok": 100,
-      "seconds": 0.43,
-      "rps": 230.6
+      "seconds": 0.46,
+      "rps": 215.8
     },
     "200": {
       "requests": 200,
       "ok": 200,
-      "seconds": 1.45,
-      "rps": 138.0
+      "seconds": 1.41,
+      "rps": 141.8
     },
     "500": {
       "requests": 500,
       "ok": 500,
-      "seconds": 3.16,
-      "rps": 158.3
+      "seconds": 2.61,
+      "rps": 191.2
     }
   }
 }

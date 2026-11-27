@@ -39,7 +39,8 @@ from aiohttp import web  # noqa: E402
 
 from main import App  # noqa: E402
 from proxyhunter import __version__  # noqa: E402
-from proxyhunter.config import WORKER_PRESETS, load_config  # noqa: E402
+from proxyhunter.config import WORKER_PRESETS, base_dir, load_config  # noqa: E402
+from proxyhunter.discovery import load_sources  # noqa: E402
 from proxyhunter.models import Proxy, utc_now  # noqa: E402
 from proxyhunter.security import hash_password, verify_password  # noqa: E402
 
@@ -767,6 +768,49 @@ async def test_security_dns_and_loopback() -> None:
     app.close()
 
 
+def test_packaged_sources_seeding() -> None:
+    """Fresh packaged installs must get real sources, never an empty file."""
+    empty = WORK / "sources-empty.json"
+    empty.write_text('{"custom": []}\n', encoding="utf-8")
+    seeded = load_sources(empty)
+    enabled = sum(
+        1 for category, entries in seeded.items()
+        if not category.startswith("_") and isinstance(entries, list)
+        for entry in entries
+        if isinstance(entry, dict) and entry.get("enabled", True) and entry.get("url")
+    )
+    rewritten = empty.stat().st_size > 100
+
+    malformed = WORK / "sources-broken.json"
+    malformed.write_text('{"custom": [', encoding="utf-8")
+    recovered = load_sources(malformed)
+    recovered_enabled = sum(
+        1 for category, entries in recovered.items()
+        if not category.startswith("_") and isinstance(entries, list)
+        for entry in entries
+        if isinstance(entry, dict) and entry.get("enabled", True) and entry.get("url")
+    )
+
+    previous = os.environ.get("PROXYHUNTER_HOME")
+    override = WORK / "home-override"
+    os.environ["PROXYHUNTER_HOME"] = str(override)
+    try:
+        override_ok = base_dir() == override
+    finally:
+        if previous is None:
+            os.environ.pop("PROXYHUNTER_HOME", None)
+        else:
+            os.environ["PROXYHUNTER_HOME"] = previous
+
+    ok = enabled > 0 and rewritten and recovered_enabled > 0 and override_ok
+    record(
+        "33_packaged_sources_seeding",
+        "PASS" if ok else "FAIL",
+        f"empty->{enabled} enabled (rewritten={rewritten}), "
+        f"malformed->{recovered_enabled}, override_dir={override_ok}",
+    )
+
+
 async def main_async() -> None:
     test_syntax()
     test_dependencies()
@@ -777,6 +821,7 @@ async def main_async() -> None:
     await gateway_tests()
     await test_tls_listener()
     await test_security_dns_and_loopback()
+    test_packaged_sources_seeding()
 
 
 def main() -> None:

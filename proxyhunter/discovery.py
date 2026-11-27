@@ -32,6 +32,21 @@ def default_sources() -> dict:
     return copy.deepcopy(DEFAULT_SOURCES)
 
 
+def _has_configured_sources(data: dict) -> bool:
+    """True when the file contains at least one usable source entry.
+
+    An empty ``{"custom": []}`` file is not usable: it would make discovery
+    stop immediately with "No enabled sources" on a fresh packaged install.
+    """
+    for category, entries in data.items():
+        if category.startswith("_") or not isinstance(entries, list):
+            continue
+        for entry in entries:
+            if isinstance(entry, dict) and (entry.get("url") or entry.get("query")):
+                return True
+    return False
+
+
 def load_sources(path: str | Path | None = None) -> dict:
     ensure_packaged_defaults()
     path = resolve_path(path or SOURCE_FILE)
@@ -43,8 +58,8 @@ def load_sources(path: str | Path | None = None) -> dict:
     try:
         with open(path, "r", encoding="utf-8") as fh:
             data = json.load(fh)
-        if not isinstance(data, dict) or not data:
-            raise ValueError("empty source configuration")
+        if not isinstance(data, dict) or not data or not _has_configured_sources(data):
+            raise ValueError("no configured sources")
         return data
     except (OSError, json.JSONDecodeError, ValueError):
         created = default_sources()

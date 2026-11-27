@@ -117,11 +117,13 @@ def base_dir() -> Path:
     packaged = bool(getattr(sys, "frozen", False)) or (
         os.path.exists("/system/build.prop") and not (source_root / "sources.json").exists()
     )
-    if not packaged:
-        return source_root
+    # An explicit override always wins (Android sets it to filesDir), even on
+    # a development machine where a source checkout is also present.
     override = os.environ.get("PROXYHUNTER_HOME")
     if override:
         root = Path(override)
+    elif not packaged:
+        return source_root
     elif os.name == "nt":
         root = Path(os.environ.get("APPDATA") or str(Path.home())) / "ProxyHunter"
     else:
@@ -156,8 +158,17 @@ def ensure_packaged_defaults() -> None:
             elif name == "config.json":
                 save_config(copy.deepcopy(DEFAULT_CONFIG), destination)
             else:
-                destination.write_text('{"custom": []}\n', encoding="utf-8")
-        except OSError:
+                # Android/Chaquopy does not package sources.json next to the
+                # Python sources.  Seed the full authorized source list from
+                # the bundled Python module instead of writing an empty file
+                # (which made discovery report "No enabled sources").
+                from .default_sources import DEFAULT_SOURCES
+
+                destination.write_text(
+                    json.dumps(DEFAULT_SOURCES, indent=2, ensure_ascii=False) + "\n",
+                    encoding="utf-8",
+                )
+        except (OSError, ImportError):
             pass
 
 
