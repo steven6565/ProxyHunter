@@ -1,4 +1,4 @@
-name: Build Android v3.0 APK
+name: Build Android v3.1.1 APK
 
 on:
   workflow_dispatch:
@@ -39,27 +39,38 @@ jobs:
           echo "APK size: $SIZE bytes"
           if [ "$SIZE" -lt 1000000 ]; then echo "APK too small"; exit 1; fi
           cp "$APK" builds/ProxyHunter_v3.1.1_Android.apk
-      - name: Emulator smoke test (installed APK)
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: ProxyHunter-v3.1.1-Android
+          path: builds/ProxyHunter_v3.1.1_Android.apk
+      - name: Signing notice
+        run: echo "Debug APK is signed with the Android debug key. Create an upload keystore for release signing."
+
+  emulator-test:
+    needs: android
+    runs-on: macos-13
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: ProxyHunter-v3.1.1-Android
+          path: apk
+      - name: Installed-APK instrumentation test
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 33
           arch: x86_64
           profile: pixel_2
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
           script: |
-            APK=$(find "$GITHUB_WORKSPACE/android/app/build/outputs/apk" -name '*.apk' | head -1)
+            APK=$(find apk -name '*.apk' | head -1)
             adb install -r "$APK"
             adb shell am instrument -w -r -e package com.proxyhunter.app \
               com.proxyhunter.app.test/androidx.test.runner.AndroidJUnitRunner | tee emulator-test.txt
-      - name: Upload emulator test log
+      - name: Upload emulator test evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: ProxyHunter-v3.1-emulator-test
+          name: ProxyHunter-v3.1.1-emulator-test
           path: emulator-test.txt
-      - name: Upload debug APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: ProxyHunter-v3.0-Android
-          path: builds/ProxyHunter_v3.1.1_Android.apk
-      - name: Signing notice
-        run: echo "Debug APK is signed with the Android debug key. Create an upload keystore for release signing."
