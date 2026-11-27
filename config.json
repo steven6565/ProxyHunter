@@ -1,5 +1,5 @@
 {
-  "config_version": 3,
+  "config_version": 4,
   "validation_max_age_hours": 24,
   "workers": {
     "preset": "normal",
@@ -45,7 +45,7 @@
     "remove_expired_hours": 24
   },
   "log_level": "INFO",
-  "user_agent": "Mozilla/5.0 (compatible; ProxyHunter/3.0; +https://github.com)",
+  "user_agent": "Mozilla/5.0 (compatible; ProxyHunter/3.1; +https://github.com)",
   "github_token": "",
   "gateway": {
     "bind": "127.0.0.1",
@@ -94,7 +94,8 @@
         "certfile": "",
         "keyfile": ""
       }
-    }
+    },
+    "auto_start": true
   },
-  "_readme": "ProxyHunter v3.0. Gateway port 8080 on localhost by default. Loopback destinations are denied unless explicitly allowed. Credentials use PBKDF2."
+  "_readme": "ProxyHunter v3.1. Gateway auto-starts locally. Auto-discovery caps workers on Android for safety."
 }

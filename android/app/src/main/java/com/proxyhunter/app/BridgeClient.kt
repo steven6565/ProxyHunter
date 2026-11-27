@@ -12,7 +12,7 @@ object BridgeClient {
         val connection = URL(BASE + path).openConnection() as HttpURLConnection
         connection.requestMethod = method
         connection.connectTimeout = 3000
-        connection.readTimeout = 30_000
+        connection.readTimeout = 180_000
         if (body != null) {
             connection.doOutput = true
             connection.setRequestProperty("Content-Type", "application/json")
@@ -21,11 +21,13 @@ object BridgeClient {
         return connection.inputStream.bufferedReader().use { it.readText() }
     }
 
-    fun healthy(): Boolean = try {
-        JSONObject(request("/health")).optBoolean("ok", false)
+    fun health(): JSONObject = try {
+        JSONObject(request("/health"))
     } catch (e: Exception) {
-        false
+        JSONObject().put("ok", false).put("error", e.message ?: "bridge unavailable")
     }
+
+    fun healthy(): Boolean = health().optBoolean("ok", false)
 
     fun action(name: String, params: Map<String, Any> = emptyMap()): JSONObject {
         val json = JSONObject()

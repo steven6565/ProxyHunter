@@ -38,11 +38,11 @@ jobs:
           SIZE=$(stat -c%s "$APK")
           echo "APK size: $SIZE bytes"
           if [ "$SIZE" -lt 1000000 ]; then echo "APK too small"; exit 1; fi
-          cp "$APK" builds/ProxyHunter_v3.0_Android.apk
+          cp "$APK" builds/ProxyHunter_v3.1_Android.apk
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
           name: ProxyHunter-v3.0-Android
-          path: builds/ProxyHunter_v3.0_Android.apk
+          path: builds/ProxyHunter_v3.1_Android.apk
       - name: Signing notice
         run: echo "Debug APK is signed with the Android debug key. Create an upload keystore for release signing."

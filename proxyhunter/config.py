@@ -17,7 +17,7 @@ WORKER_PRESETS = {
 }
 
 DEFAULT_CONFIG: dict[str, Any] = {
-    "config_version": 3,
+    "config_version": 4,
     "validation_max_age_hours": 24,
     "workers": {"preset": "normal", "count": 50},
     "timeout_seconds": 8,
@@ -50,6 +50,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "user_agent": "Mozilla/5.0 (compatible; ProxyHunter/3.0; +https://github.com)",
     "github_token": "",  # optional, raises GitHub API rate limits
     "gateway": {
+        "auto_start": True,
         "bind": "127.0.0.1",
         "port": 8080,
         "country": "all",
@@ -211,6 +212,7 @@ def validate_config(cfg: dict) -> dict:
         gateway["pool_refresh_minutes"] = DEFAULT_CONFIG["gateway"]["pool_refresh_minutes"]
     if gateway["health_check_minutes"] >= 1440:
         gateway["health_check_minutes"] = DEFAULT_CONFIG["gateway"]["health_check_minutes"]
+    gateway["auto_start"] = bool(gateway.get("auto_start", True))
     gateway["allow_remote_access"] = bool(gateway.get("allow_remote_access", False))
 
     auth = _merge(DEFAULT_CONFIG["gateway"]["auth"], gateway.get("auth") or {})
@@ -295,7 +297,13 @@ def migrate_config(data: dict) -> dict:
         security["allow_loopback"] = False
         gateway["security"] = security
         data["gateway"] = gateway
-        data["config_version"] = 3
+        version = 3
+    if version < 4:
+        # v3.1: start the local gateway automatically on app launch.
+        gateway = data.get("gateway") or {}
+        gateway["auto_start"] = True
+        data["gateway"] = gateway
+        data["config_version"] = 4
     return data
 
 

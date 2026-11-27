@@ -1,6 +1,6 @@
 ; Inno Setup script for ProxyHunter v3.0 Windows installer (64-bit)
 #define MyAppName "ProxyHunter"
-#define MyAppVersion "3.0.0"
+#define MyAppVersion "3.1.0"
 #define MyAppPublisher "ProxyHunter Project"
 #define MyAppExeName "ProxyHunter.exe"
 
@@ -12,7 +12,7 @@ AppPublisher={#MyAppPublisher}
 DefaultDirName={autopf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 OutputDir=..\builds
-OutputBaseFilename=ProxyHunter_v3.0_Setup
+OutputBaseFilename=ProxyHunter_v3.1_Setup
 SetupIconFile=ProxyHunter.ico
 Compression=lzma2
 SolidCompression=yes

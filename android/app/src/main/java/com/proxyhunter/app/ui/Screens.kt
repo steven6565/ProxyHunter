@@ -24,6 +24,10 @@ import androidx.compose.ui.unit.dp
 
 data class UiStats(
     val status: String = "OFFLINE",
+    val backend: String = "OFFLINE",
+    val internet: String = "OFFLINE",
+    val gateway: String = "OFFLINE",
+    val backendError: String = "",
     val endpoint: String = "http://127.0.0.1:8080",
     val country: String = "ALL",
     val mode: String = "per_connection",
@@ -56,13 +60,17 @@ data class UiProxy(
 data class UiExport(val name: String, val count: Int, val sizeBytes: Long, val timestamp: String)
 
 @Composable
-fun HomeScreen(stats: UiStats, onAction: (String) -> Unit) {
+fun HomeScreen(stats: UiStats, onAction: (String) -> Unit, onFindProxies: () -> Unit) {
     Column(modifier = Modifier.fillMaxWidth()) {
         SurfaceCard("Live status") {
-            Text("${stats.status}  ·  ${stats.endpoint}", fontWeight = FontWeight.SemiBold,
-                color = if (stats.status == "ONLINE") Emerald else Danger)
+            Text("Gateway ${stats.gateway} · ${stats.endpoint}", fontWeight = FontWeight.SemiBold,
+                color = if (stats.gateway == "ONLINE") Emerald else Danger)
+            Text("Internet ${stats.internet}   Backend ${stats.backend}   App ${stats.status}")
             Text("Country: ${stats.country}   Rotation: ${stats.mode}")
             Text("Operation: ${stats.operation}   Uptime: ${stats.uptime}")
+            if (stats.backendError.isNotBlank()) {
+                Text(stats.backendError.take(160), color = Danger, style = MaterialTheme.typography.labelMedium)
+            }
             LinearProgressIndicator(progress = { stats.progress.coerceIn(0f, 1f) },
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
         }
@@ -86,13 +94,13 @@ fun HomeScreen(stats: UiStats, onAction: (String) -> Unit) {
                 style = MaterialTheme.typography.labelMedium)
         }
         SurfaceCard("Controls") {
-            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Button(onClick = { onAction("discover") }, Modifier.padding(end = 6.dp)) { Text("Find Proxies") }
-                Button(onClick = { onAction("check") }, Modifier.padding(end = 6.dp)) { Text("Check") }
-                OutlinedButton(onClick = { onAction("refresh") }) { Text("Refresh") }
-            }
             Row(modifier = Modifier.fillMaxWidth()) {
-                OutlinedButton(onClick = { onAction("stop") }) { Text("Stop") }
+                Button(onClick = onFindProxies, Modifier.weight(1f).padding(end = 4.dp)) { Text("Find Proxies") }
+                OutlinedButton(onClick = { onAction("check") }, Modifier.weight(1f).padding(start = 4.dp)) { Text("Check") }
+            }
+            Row(modifier = Modifier.fillMaxWidth().padding(top = 6.dp)) {
+                OutlinedButton(onClick = { onAction("refresh") }, Modifier.weight(1f).padding(end = 4.dp)) { Text("Refresh") }
+                OutlinedButton(onClick = { onAction("stop") }, Modifier.weight(1f).padding(start = 4.dp)) { Text("Stop") }
             }
         }
     }

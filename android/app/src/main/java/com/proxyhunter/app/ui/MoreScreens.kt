@@ -34,10 +34,10 @@ fun GatewayScreen(stats: UiStats, countries: Map<String, Int>, modes: List<Strin
             Text("Eligible: ${stats.healthy}   Unique IPs: ${stats.uniqueIps}")
             Text("Active: ${stats.active}   OK: ${stats.success}   Failed: ${stats.failed}")
             Text("Current upstream: ${stats.currentIp}")
-            Row(Modifier.padding(top = 8.dp)) {
-                Button(onClick = { onAction("gateway_start", emptyMap()) }, Modifier.padding(end = 6.dp)) { Text("Start") }
-                OutlinedButton(onClick = { onAction("gateway_stop", emptyMap()) }, Modifier.padding(end = 6.dp)) { Text("Stop") }
-                OutlinedButton(onClick = { onAction("copy_endpoint", emptyMap()) }) { Text("Copy endpoint") }
+            Row(Modifier.fillMaxWidth().padding(top = 8.dp)) {
+                Button(onClick = { onAction("gateway_start", emptyMap()) }, Modifier.weight(1f).padding(end = 3.dp)) { Text("Start") }
+                OutlinedButton(onClick = { onAction("gateway_stop", emptyMap()) }, Modifier.weight(1f).padding(start = 3.dp, end = 3.dp)) { Text("Stop") }
+                OutlinedButton(onClick = { onAction("copy_endpoint", emptyMap()) }, Modifier.weight(1f).padding(start = 3.dp)) { Text("Copy") }
             }
         }
         SurfaceCard("Country selection") {
@@ -58,9 +58,15 @@ fun GatewayScreen(stats: UiStats, countries: Map<String, Int>, modes: List<Strin
             }
         }
         SurfaceCard("Rotation") {
-            modes.forEach { item ->
-                OutlinedButton(onClick = { mode = item; onAction("gateway_mode", mapOf("mode" to item)) },
-                    Modifier.padding(end = 4.dp)) { Text(item) }
+            modes.chunked(3).forEach { group ->
+                Row(Modifier.fillMaxWidth()) {
+                    group.forEach { item ->
+                        OutlinedButton(
+                            onClick = { mode = item; onAction("gateway_mode", mapOf("mode" to item)) },
+                            Modifier.weight(1f).padding(end = 3.dp),
+                        ) { Text(item, style = MaterialTheme.typography.labelMedium) }
+                    }
+                }
             }
             Text("Active: $mode", style = MaterialTheme.typography.labelMedium)
         }
@@ -80,13 +86,11 @@ fun GatewayScreen(stats: UiStats, countries: Map<String, Int>, modes: List<Strin
 fun DownloadsScreen(history: List<UiExport>, onAction: (String, Map<String, Any>) -> Unit) {
     Column(Modifier.fillMaxWidth()) {
         SurfaceCard("Export working proxies") {
-            Row {
-                Button(onClick = { onAction("export", mapOf("kind" to "all", "formats" to listOf("txt", "csv", "json"))) }) {
-                    Text("Export all")
-                }
-                OutlinedButton(onClick = { onAction("export", mapOf("kind" to "protocol", "value" to "socks5")) }) {
-                    Text("SOCKS5")
-                }
+            Row(Modifier.fillMaxWidth()) {
+                Button(onClick = { onAction("export", mapOf("kind" to "all", "formats" to listOf("txt", "csv", "json"))) },
+                    Modifier.weight(1f).padding(end = 3.dp)) { Text("Export all") }
+                OutlinedButton(onClick = { onAction("export", mapOf("kind" to "protocol", "value" to "socks5")) },
+                    Modifier.weight(1f).padding(start = 3.dp)) { Text("SOCKS5") }
             }
             Text("Files are written to Download/ProxyHunter/", style = MaterialTheme.typography.labelMedium)
         }

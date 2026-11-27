@@ -32,8 +32,8 @@ jobs:
           Get-Content selftest.json
       - name: Rename portable executable
         run: |
-          Copy-Item builds/ProxyHunter_portable/ProxyHunter.exe builds/ProxyHunter_v3.0_Windows.exe -Force
-          Get-Item builds/ProxyHunter_v3.0_Windows.exe | Format-List Name,Length
+          Copy-Item builds/ProxyHunter_portable/ProxyHunter.exe builds/ProxyHunter_v3.1_Windows.exe -Force
+          Get-Item builds/ProxyHunter_v3.1_Windows.exe | Format-List Name,Length
       - name: Install Inno Setup
         run: choco install innosetup -y --no-progress
       - name: Build Setup.exe
@@ -43,17 +43,17 @@ jobs:
           & $iscc desktop/installer.iss /Qp
       - name: Verify Setup.exe
         run: |
-          if (!(Test-Path builds/ProxyHunter_v3.0_Setup.exe)) { throw 'Setup.exe missing' }
-          Get-Item builds/ProxyHunter_v3.0_Setup.exe | Format-List Name,Length
+          if (!(Test-Path builds/ProxyHunter_v3.1_Setup.exe)) { throw 'Setup.exe missing' }
+          Get-Item builds/ProxyHunter_v3.1_Setup.exe | Format-List Name,Length
       - name: Package portable ZIP
-        run: Compress-Archive -Path builds/ProxyHunter_portable/* -DestinationPath builds/ProxyHunter_v3.0_Windows_portable.zip -Force
+        run: Compress-Archive -Path builds/ProxyHunter_portable/* -DestinationPath builds/ProxyHunter_v3.1_Windows_portable.zip -Force
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ProxyHunter-v3.0-Windows
           path: |
-            builds/ProxyHunter_v3.0_Windows.exe
-            builds/ProxyHunter_v3.0_Setup.exe
-            builds/ProxyHunter_v3.0_Windows_portable.zip
+            builds/ProxyHunter_v3.1_Windows.exe
+            builds/ProxyHunter_v3.1_Setup.exe
+            builds/ProxyHunter_v3.1_Windows_portable.zip
       - name: Signing notice
         run: echo "Artifacts are UNSIGNED unless a code-signing certificate secret is configured."

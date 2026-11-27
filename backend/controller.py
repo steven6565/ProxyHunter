@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import socket
 import threading
 import time
 from collections import deque
@@ -58,6 +59,8 @@ class BackendController:
         self.dashboard = BridgeDashboard(self.emit)
         self.gateway = Gateway(self.config, self.storage, self.geo, self.events)
         self.started = time.monotonic()
+        self._network_checked = 0.0
+        self._network_ok = False
         self.operation = "idle"
         self.progress = 0.0
         self._refresh_callback_set = False
@@ -137,6 +140,9 @@ class BackendController:
         snapshot = self.gateway.snapshot()
         snapshot.update({
             "version": __version__,
+            "backend": "READY",
+            "internet": "ONLINE" if self.connectivity() else "OFFLINE",
+            "gateway": "ONLINE" if self.gateway.running else "OFFLINE",
             "discovered": self.metrics.discovered,
             "unique": self.metrics.unique,
             "checked": self.metrics.checked,
@@ -156,6 +162,19 @@ class BackendController:
 
     def events_tail(self, count: int = 20) -> list[str]:
         return list(self.events)[-count:]
+
+    def connectivity(self) -> bool:
+        """Cached, bounded independent internet check (never uses a proxy)."""
+        now = time.monotonic()
+        if now - self._network_checked < 30:
+            return self._network_ok
+        self._network_checked = now
+        try:
+            with socket.create_connection(("1.1.1.1", 53), timeout=2.0):
+                self._network_ok = True
+        except OSError:
+            self._network_ok = False
+        return self._network_ok
 
     # --------------------------------------------------------------- exports
     def export(self, directory: str, name: str = "working_proxies", formats: Iterable[str] = ("txt",),

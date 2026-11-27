@@ -1,40 +1,88 @@
 """Local JSON bridge: Android UI -> embedded Python backend.
 
-Runs a tiny loopback-only HTTP server on port 8765. No token is sent to any
-remote service; the socket is bound to 127.0.0.1 and never exposed.
+v3.1 fix: backend imports are lazy so a missing dependency can never prevent
+the HTTP server from starting. All actions return JSON errors instead of
+crashing the app, and discovery runs asynchronously (the UI polls real stats).
 """
 
 from __future__ import annotations
 
 import json
+import os
+import socket
 import sys
 import threading
+import time
+import traceback
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]  # android/python -> project root
-sys.path.insert(0, str(ROOT))
-sys.path.insert(0, str(ROOT / "shared"))
-sys.path.insert(0, str(ROOT / "backend"))
+for entry in (ROOT, ROOT / "shared", ROOT / "backend"):
+    if str(entry) not in sys.path:
+        sys.path.insert(0, str(entry))
 
-from backend.controller import BackendController, BackendWorker  # noqa: E402
-
-CONTROLLER: BackendController | None = None
-WORKER: BackendWorker | None = None
+CONTROLLER = None
+WORKER = None
 SERVER: ThreadingHTTPServer | None = None
+STARTUP_ERROR = ""
+TASKS: set = set()
+_LAST_NETWORK_CHECK = 0.0
+_NETWORK_OK = False
 
 
-def ensure_backend() -> tuple[BackendController, BackendWorker]:
-    global CONTROLLER, WORKER
-    if CONTROLLER is None:
+def _android() -> bool:
+    return os.path.exists("/system/build.prop") or bool(os.environ.get("ANDROID_ROOT"))
+
+
+MAX_SAFE_WORKERS = 200 if _android() else 500
+
+
+def _internet_ok() -> bool:
+    global _LAST_NETWORK_CHECK, _NETWORK_OK
+    now = time.monotonic()
+    if now - _LAST_NETWORK_CHECK < 30:
+        return _NETWORK_OK
+    _LAST_NETWORK_CHECK = now
+    try:
+        with socket.create_connection(("1.1.1.1", 53), timeout=1.5):
+            _NETWORK_OK = True
+    except OSError:
+        _NETWORK_OK = False
+    return _NETWORK_OK
+
+
+def ensure_backend():
+    """Initialise the controller once, recording any error instead of raising."""
+    global CONTROLLER, WORKER, STARTUP_ERROR
+    if CONTROLLER is not None and WORKER is not None:
+        return CONTROLLER, WORKER
+    if STARTUP_ERROR:
+        raise RuntimeError(STARTUP_ERROR)
+    try:
+        from backend.controller import BackendController, BackendWorker  # lazy
+
         CONTROLLER = BackendController()
-    if WORKER is None:
         WORKER = BackendWorker(CONTROLLER)
-    return CONTROLLER, WORKER
+        # Automatic local gateway startup (never exposed publicly by default).
+        try:
+            if CONTROLLER.config.get("gateway", {}).get("auto_start", True):
+                WORKER.submit(CONTROLLER.gateway_start()).result(timeout=20)
+        except Exception as exc:  # noqa: BLE001
+            STARTUP_ERROR = f"gateway start: {type(exc).__name__}: {exc}"
+        return CONTROLLER, WORKER
+    except Exception as exc:  # noqa: BLE001
+        STARTUP_ERROR = f"{type(exc).__name__}: {exc}\n{traceback.format_exc()[-1500:]}"
+        try:
+            Path("/sdcard/Download/ProxyHunter/backend_error.txt").parent.mkdir(parents=True, exist_ok=True)
+            Path("/sdcard/Download/ProxyHunter/backend_error.txt").write_text(STARTUP_ERROR)
+        except OSError:
+            pass
+        raise RuntimeError(STARTUP_ERROR) from exc
 
 
 class Handler(BaseHTTPRequestHandler):
-    def log_message(self, *args) -> None:  # keep logcat quiet
+    def log_message(self, *args) -> None:
         pass
 
     def _send(self, payload: dict, status: int = 200) -> None:
@@ -47,7 +95,14 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:
         if self.path == "/health":
-            self._send({"ok": True, "version": "3.0.0"})
+            self._send({
+                "ok": CONTROLLER is not None and not STARTUP_ERROR,
+                "version": "3.1.0",
+                "backend": "READY" if CONTROLLER is not None else "ERROR",
+                "gateway": "ONLINE" if CONTROLLER and CONTROLLER.gateway.running else "OFFLINE",
+                "internet": "ONLINE" if _internet_ok() else "OFFLINE",
+                "error": STARTUP_ERROR,
+            })
         else:
             self._send({"error": "not found"}, 404)
 
@@ -59,9 +114,19 @@ class Handler(BaseHTTPRequestHandler):
         length = int(self.headers.get("Content-Length") or 0)
         try:
             params = json.loads(self.rfile.read(length) or b"{}")
-        except json.JSONDecodeError:
+        except (json.JSONDecodeError, ValueError):
             params = {}
-        controller, worker = ensure_backend()
+        try:
+            controller, worker = ensure_backend()
+        except Exception as exc:  # noqa: BLE001
+            self._send({"error": f"backend unavailable: {exc}"}, 503)
+            return
+
+        def background(coro) -> None:
+            future = worker.submit(coro)
+            TASKS.add(future)
+            future.add_done_callback(TASKS.discard)
+
         try:
             if action == "stats":
                 result = controller.stats()
@@ -73,14 +138,21 @@ class Handler(BaseHTTPRequestHandler):
             elif action == "countries":
                 result = {"countries": controller.countries(), "capacity": controller.capacity()}
             elif action == "discover":
-                result = {"proxies": len(worker.submit(controller.discover()).result(timeout=600))}
+                workers = max(1, min(MAX_SAFE_WORKERS, int(params.get("workers", 50) or 50)))
+                controller.config["workers"]["count"] = workers
+                background(controller.discover())
+                result = {"started": True, "workers": workers}
             elif action == "check":
-                result = {"checked": len(worker.submit(controller.check(limit=int(params.get("limit", 0)))).result(timeout=900))}
+                limit = int(params.get("limit", 0) or 0)
+                background(controller.check(limit=limit))
+                result = {"started": True}
+            elif action == "refresh":
+                limit = int(params.get("limit", 200) or 200)
+                background(controller.discover_and_check(limit=limit))
+                result = {"started": True}
             elif action == "stop":
                 controller.request_stop()
                 result = {"ok": True}
-            elif action == "refresh":
-                result = worker.submit(controller.discover_and_check(limit=int(params.get("limit", 200)))).result(timeout=900)
             elif action == "gateway_start":
                 result = {"ok": worker.submit(controller.gateway_start()).result(timeout=30)}
             elif action == "gateway_stop":
@@ -119,9 +191,12 @@ class BridgeServer:
     @staticmethod
     def start(port: int = 8765) -> None:
         global SERVER
-        ensure_backend()
         if SERVER is not None:
             return
+        try:
+            ensure_backend()
+        except Exception:
+            pass  # /health will report the error; never kill the service
         SERVER = ThreadingHTTPServer(("127.0.0.1", int(port)), Handler)
         SERVER.serve_forever()
 

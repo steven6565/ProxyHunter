@@ -45,6 +45,8 @@ class ProxyHunterApp(tk.Tk):
         self.controller = BackendController(on_event=lambda kind, data: self.events.put((kind, data)))
         self.worker = BackendWorker(self.controller)
         self.pending: list = []
+        if self.controller.config.get("gateway", {}).get("auto_start", True):
+            self.pending.append(self.worker.submit(self.controller.gateway_start()))
         self.dark = True
         self.export_dir = default_export_dir(desktop=True)
         self._styles()
@@ -121,7 +123,7 @@ class ProxyHunterApp(tk.Tk):
         if name == "Dashboard":
             self.stat_labels = {}
             card = self._card(frame, "Live status")
-            for key in ("status", "endpoint", "country", "mode", "discovered", "working",
+            for key in ("status", "backend", "internet", "gateway", "endpoint", "country", "mode", "discovered", "working",
                         "unique_ips", "healthy", "checked", "speed", "active", "workers",
                         "latency", "uptime", "last_refresh", "cpu", "ram"):
                 row = ttk.Frame(card, style="Card.TFrame")
@@ -440,7 +442,7 @@ def selftest() -> None:
     controller.close()
     Path("selftest.json").write_text(json.dumps({
         "ok": True,
-        "version": "3.0.0",
+        "version": "3.1.0",
         "endpoint": stats.get("endpoint"),
         "status": stats.get("status"),
     }, indent=2), encoding="utf-8")

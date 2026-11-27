@@ -7,6 +7,8 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -15,8 +17,12 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Power
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
@@ -63,6 +69,9 @@ class MainActivity : ComponentActivity() {
         var countries by remember { mutableStateOf<Map<String, Int>>(emptyMap()) }
         var history by remember { mutableStateOf<List<UiExport>>(emptyList()) }
         var message by remember { mutableStateOf("") }
+        var showWorkerDialog by remember { mutableStateOf(false) }
+        var selectedWorkers by remember { mutableStateOf(50) }
+        var customWorkers by remember { mutableStateOf("50") }
         val scope = rememberCoroutineScope()
         val context = LocalContext.current
 
@@ -75,11 +84,12 @@ class MainActivity : ComponentActivity() {
         }
 
         suspend fun refresh() = withContext(Dispatchers.IO) {
-            val s = try { BridgeClient.stats() } catch (e: Exception) { JSONObject() }
-            val p = try { BridgeClient.proxies() } catch (e: Exception) { JSONObject() }
-            val c = try { BridgeClient.countries() } catch (e: Exception) { JSONObject() }
+            val h = try { BridgeClient.health() } catch (ex: Exception) { JSONObject() }
+            val s = try { BridgeClient.stats() } catch (ex: Exception) { JSONObject() }
+            val p = try { BridgeClient.proxies() } catch (ex: Exception) { JSONObject() }
+            val c = try { BridgeClient.countries() } catch (ex: Exception) { JSONObject() }
             val e = try { BridgeClient.exports("/sdcard/Download/ProxyHunter") } catch (ex: Exception) { JSONObject() }
-            stats = parseStats(s)
+            stats = parseStats(s, h)
             proxies = parseProxies(p)
             countries = parseCountries(c)
             history = parseExports(e)
@@ -94,7 +104,11 @@ class MainActivity : ComponentActivity() {
 
         fun action(name: String, params: Map<String, Any> = emptyMap()) {
             scope.launch {
-                show(withContext(Dispatchers.IO) { BridgeClient.action(name, params) })
+                try {
+                    show(withContext(Dispatchers.IO) { BridgeClient.action(name, params) })
+                } catch (e: Exception) {
+                    message = "Bridge error: ${e.message ?: "unknown"}"
+                }
                 refresh()
             }
         }
@@ -132,7 +146,7 @@ class MainActivity : ComponentActivity() {
             ) { padding ->
                 Box(Modifier.fillMaxSize().padding(padding)) {
                     when (tab) {
-                        0 -> HomeScreen(stats) { name -> action(name) }
+                        0 -> HomeScreen(stats, { name -> action(name) }) { showWorkerDialog = true }
                         1 -> ProxiesScreen(proxies) { copy(it) }
                         2 -> GatewayScreen(stats, countries,
                             listOf("per_connection", "round_robin", "random", "time_based", "sticky", "lowest_latency")) { name, params ->
@@ -147,11 +161,53 @@ class MainActivity : ComponentActivity() {
                     }
                 }
             }
+            if (showWorkerDialog) {
+                AlertDialog(
+                    onDismissRequest = { showWorkerDialog = false },
+                    title = { Text("Find Proxies — workers") },
+                    text = {
+                        Column {
+                            Text("Choose concurrency (subject to safe device limits).")
+                            listOf(10, 50, 100, 200, 500, 0).forEach { option ->
+                                Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                                    RadioButton(
+                                        selected = selectedWorkers == option,
+                                        onClick = { selectedWorkers = option },
+                                    )
+                                    Text(if (option == 0) "Custom" else option.toString())
+                                }
+                            }
+                            if (selectedWorkers == 0) {
+                                TextField(
+                                    value = customWorkers,
+                                    onValueChange = { customWorkers = it },
+                                    label = { Text("Custom workers") },
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
+                            }
+                        }
+                    },
+                    confirmButton = {
+                        TextButton(onClick = {
+                            val count = if (selectedWorkers == 0)
+                                customWorkers.toIntOrNull() ?: 50 else selectedWorkers
+                            selectedWorkers = count
+                            showWorkerDialog = false
+                            action("discover", mapOf("workers" to count))
+                        }) { Text("Start Discovery") }
+                    },
+                    dismissButton = { TextButton(onClick = { showWorkerDialog = false }) { Text("Cancel") } },
+                )
+            }
         }
     }
 
-    private fun parseStats(json: JSONObject): UiStats = UiStats(
+    private fun parseStats(json: JSONObject, health: JSONObject): UiStats = UiStats(
         status = json.optString("status", "OFFLINE"),
+        backend = health.optString("backend", if (health.optBoolean("ok", false)) "READY" else "OFFLINE"),
+        internet = health.optString("internet", "OFFLINE"),
+        gateway = json.optString("gateway", health.optString("gateway", "OFFLINE")),
+        backendError = health.optString("error", ""),
         endpoint = json.optString("endpoint", "http://127.0.0.1:8080"),
         country = json.optString("country", "all"),
         mode = json.optString("mode", "per_connection"),
