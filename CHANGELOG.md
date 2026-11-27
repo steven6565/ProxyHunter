@@ -1,5 +1,19 @@
 # Changelog
 
+## v3.1.0 — Critical bug fixes (2026-11-27)
+
+### Fixed
+- **Android Find Proxies crash:** missing `rich` dependency in Chaquopy caused the Python bridge import chain to fail; added `rich`, made bridge imports lazy, added error-reporting `/health`, and wrapped all Kotlin bridge calls in exception handling.
+- **Worker selection:** Find Proxies now opens a dialog with 10/50/100/200/500 + Custom (default 50, safe device cap 200 on Android), starts discovery asynchronously and polls real progress/counts.
+- **Automatic backend/gateway startup:** gateway auto-starts on Android and Windows launch; independent Internet, Backend and Gateway statuses are shown.
+- **Layout:** weighted buttons and compact rows prevent overlapping controls on phones and laptops.
+- Backend config migrated to v4 with `gateway.auto_start`.
+
+### Verified
+- Crash reproduced locally and fix verified with `rich` deliberately blocked (server stays up, reports error).
+- 32/32 backend tests PASS; APK/EXE rebuilt via GitHub Actions and verified genuine.
+- Physical-device and interactive-GUI tests marked NOT TESTED.
+
 ## v3.0.0 — Desktop & Mobile Edition (2026-11-27)
 
 ### Added

@@ -1,8 +1,10 @@
-# ProxyHunter v3.0 — Desktop & Mobile Edition
+# ProxyHunter v3.1.0 — Desktop & Mobile Edition (critical bug fixes)
 
 > **v3.0 adds a native Kotlin/Jetpack Compose Android app, a lightweight Tkinter Windows desktop app, a shared backend controller, an export engine, and reproducible APK/EXE build workflows.** The proven Python backend and all v2 features are preserved. The CLI remains available as an advanced mode: `python3 main.py`.
 >
-> **Build status:** the APK and EXE were compiled successfully by GitHub Actions (private repo `steven6565/ProxyHunter`, tag `v3.0.0`) and downloaded as genuine binaries. Android is debug-signed; Windows binaries are unsigned. Physical-device and interactive GUI tests remain pending — see `BUILD_STATUS.txt` and `TEST_REPORT.md`.
+> **v3.1.0:** fixes the Android Find Proxies crash (missing `rich` in Chaquopy → bridge import failure → uncaught Kotlin coroutine exception), adds worker-selection dialog, automatic backend/gateway startup with independent Internet/Backend/Gateway statuses, and compact-layout fixes. See `TEST_REPORT.md` for root-cause evidence.
+>
+> **Build status:** v3.1 APK/EXE/Setup were rebuilt by GitHub Actions and verified as genuine files. Android is debug-signed; Windows binaries are unsigned. Physical-device and interactive GUI tests remain **NOT TESTED** in this environment.
 
 ## v3.0 frontends
 

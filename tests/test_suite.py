@@ -321,7 +321,7 @@ def test_dependencies() -> None:
 
 def test_startup() -> None:
     app = App()
-    ok = __version__ == "3.0.0" and app.config["config_version"] == 3
+    ok = __version__ == "3.1.0" and app.config["config_version"] == 4
     record("03_application_startup", "PASS" if ok else "FAIL",
            f"version={__version__}, config_version={app.config['config_version']}")
     app.close()

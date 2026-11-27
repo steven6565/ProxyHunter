@@ -1,3 +1,34 @@
+# ProxyHunter v3.1.0 — Test Report (v3.0 baseline below)
+
+## Android Find Proxies crash — root cause and evidence
+
+**Reported symptoms:** APK installed, screens opened, dashboard OFFLINE/0 proxies, tapping Find Proxies crashed the app.
+
+**Root cause (reproduced locally):**
+1. The Chaquopy pip configuration omitted `rich`. `android/python/bridge.py` imported `backend.controller` at module import time; that chain imports `proxyhunter.dashboard` → `rich`.
+2. With `rich` unavailable, `import backend.controller` raises `ModuleNotFoundError: No module named 'rich'` (reproduced by blocking the `rich` import: output shows the exact failure).
+3. The Python bridge therefore never started; all HTTP calls from Kotlin failed. `MainActivity.action()` launched a coroutine with no exception handling, so the failed Find Proxies POST produced an uncaught coroutine exception and closed the app.
+
+**Fixes:**
+- Added `rich` to Chaquopy pip requirements.
+- Made bridge imports lazy; the HTTP server now always starts and `/health` reports `backend: ERROR` with the captured traceback instead of killing the service.
+- All bridge actions return JSON errors; Kotlin `action()` and `refresh()` wrap every bridge call in `try/catch`.
+- Find Proxies now opens a worker-selection dialog (10/50/100/200/500/Custom, default 50, capped by safe device limits); discovery starts asynchronously on the backend loop and the UI polls real stats — no 30 s HTTP timeout crash.
+- Gateway auto-starts on app launch; independent Internet/Backend/Gateway statuses are reported from `/health`.
+- Compact-screen layout fixes (weighted buttons, no overlap).
+
+**Test evidence:**
+- Old crash reproduced: `ModuleNotFoundError: No module named 'rich'` from `backend.controller → proxyhunter.dashboard`.
+- New bridge with `rich` deliberately blocked: HTTP server still starts and `/health` returns `{"ok":false,"backend":"ERROR","error":"ModuleNotFoundError: No module named 'rich'..."}` — no crash.
+- Local bridge endpoint test: `/api/stats` → backend READY, gateway ONLINE, internet ONLINE, version 3.1.0; `/api/discover {"workers":500}` → `{"started":true,"workers":200}` (Android safe cap); stats then showed real discovered/unique counts.
+- Backend regression suite: **32/32 PASS** after all v3.1 changes.
+- Android CI build: **PASS** (run 45965607649). Windows CI build + EXE selftest: **PASS** (run 45963805724).
+- APK/EXE format verification: genuine ZIP APK with `classes.dex`; EXE/Setup valid PE32+ (`MZ`/`PE`).
+
+**NOT TESTED:** Android physical-device install/launch/tap-through (no adb device attached); interactive Windows GUI on a real desktop. These are not claimed.
+
+---
+
 # ProxyHunter v3.0 — Test Report (v2.0 baseline below)
 
 ## v3.0 results (2026-11-27)

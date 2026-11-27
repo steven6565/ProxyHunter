@@ -1,3 +1,18 @@
+# ProxyHunter v3.1.0 — Production Readiness Assessment (v3.0 baseline below)
+
+## v3.1 verdict
+
+**Critical Android Find Proxies crash: FIXED and verified at code-path/CI level.**
+**Packaged apps: BUILT. Device-level confirmation: PENDING.**
+
+- Root cause reproduced locally (missing `rich` in Chaquopy pip → bridge import failure → uncaught Kotlin coroutine exception).
+- Fixed: lazy imports, error-reporting `/health`, exception-safe Kotlin calls, added `rich`, async worker-selection discovery, auto-start gateway, independent statuses, compact layouts.
+- Backend regression: 32/32 PASS; 60-minute stability previously PASS (99.725%).
+- Android APK and Windows EXE/Setup rebuilt successfully and verified as genuine files.
+- Android physical-device tap-through and interactive Windows GUI remain **NOT TESTED** — no device/emulator or Windows desktop in the delivery environment.
+
+---
+
 # ProxyHunter v3.0 — Production Readiness Assessment (v2.0 baseline below)
 
 ## v3.0 verdict

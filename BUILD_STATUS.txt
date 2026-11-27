@@ -1,17 +1,14 @@
-ProxyHunter v3.0 — final build artifact status
+ProxyHunter v3.1.0 — critical bug-fix build status
 
 GitHub repository: https://github.com/steven6565/ProxyHunter (private)
-Release tag: v3.0.0
+Release tag: v3.1.0
 
-ProxyHunter_v3.0_Android.apk    BUILT - GitHub Actions run 45957372999 (success). 46,802,608 bytes. Valid ZIP APK with classes.dex + AndroidManifest.xml.
-ProxyHunter_v3.0_Windows.exe    BUILT - GitHub Actions run 45957889216 (success). 7,658,700 bytes. Valid PE32+ executable (MZ + PE header).
-ProxyHunter_v3.0_Setup.exe      BUILT - GitHub Actions run 45957889216 (success). 20,574,741 bytes. Valid PE32+ installer (MZ + PE header).
-ProxyHunter_v3.0_Source.zip     READY - complete updated source archive.
+ProxyHunter_v3.1_Android.apk    BUILT — CI run 45965607649 (success). 49,454,472 bytes. Valid APK with classes.dex + manifest. Includes rich in Chaquopy pip.
+ProxyHunter_v3.1_Windows.exe    BUILT — CI run 45963805724 (success). 7,659,712 bytes. Valid PE32+, --selftest passed on runner.
+ProxyHunter_v3.1_Setup.exe      BUILT — CI run 45963805724 (success). 20,577,959 bytes. Valid PE32+ installer.
+ProxyHunter_v3.1_Source.zip     READY — complete corrected source.
 
-CI smoke tests:
-- Windows EXE --selftest: PASS (backend initialised, selftest.json written by the built executable).
-- Android: compile/package verification PASS (APK contains classes.dex and manifest). Physical-device install/start: PENDING (no device/emulator in delivery environment).
+Android physical-device install/start: NOT TESTED (no adb device attached in delivery environment).
+Interactive Windows desktop GUI: NOT TESTED (CI startup selftest only).
 
-Stability: 60-minute controlled backend run PASS — 44,286 successful / 122 failed (99.725%) in output/stability_60min.json.
-
-Signing: Android APK is debug-signed; Windows EXE/Setup are UNSIGNED (no code-signing certificate configured).
+Signing: Android debug-signed; Windows unsigned.
