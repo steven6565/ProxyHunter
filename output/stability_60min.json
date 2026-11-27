@@ -1,13 +1,25 @@
 {
   "status": "running",
-  "elapsed_s": 60,
-  "success": 860,
+  "elapsed_s": 180,
+  "success": 2544,
   "failure": 0,
   "success_rate": 1.0,
   "samples": [
     {
       "elapsed_s": 60,
       "success": 860,
+      "failure": 0,
+      "success_rate": 1.0
+    },
+    {
+      "elapsed_s": 120,
+      "success": 1700,
+      "failure": 0,
+      "success_rate": 1.0
+    },
+    {
+      "elapsed_s": 180,
+      "success": 2544,
       "failure": 0,
       "success_rate": 1.0
     }

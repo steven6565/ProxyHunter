@@ -33,11 +33,13 @@ jobs:
         run: |
           Copy-Item builds/ProxyHunter_portable/ProxyHunter.exe builds/ProxyHunter_v3.0_Windows.exe -Force
           Get-Item builds/ProxyHunter_v3.0_Windows.exe | Format-List Name,Length
+      - name: Install Inno Setup
+        run: choco install innosetup -y --no-progress
       - name: Build Setup.exe
-        uses: iscompose/Inno-Setup-Action@v1
-        with:
-          path: desktop/installer.iss
-          options: /Qp
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (!(Test-Path $iscc)) { throw "ISCC.exe not found" }
+          & $iscc desktop/installer.iss /Qp
       - name: Verify Setup.exe
         run: |
           if (!(Test-Path builds/ProxyHunter_v3.0_Setup.exe)) { throw 'Setup.exe missing' }
