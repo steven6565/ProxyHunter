@@ -37,7 +37,7 @@ object BridgeClient {
         val deadline = SystemClock.elapsedRealtime() + timeoutMs
         while (SystemClock.elapsedRealtime() < deadline) {
             val h = health()
-            if (h.optBoolean("ok", false) && h.optBoolean("ready", true)) return true
+            if (h.optBoolean("ok", false)) return true
             Thread.sleep(400)
         }
         return false

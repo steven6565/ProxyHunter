@@ -30,7 +30,7 @@ class BridgeSmokeTest {
 
     @Test
     fun bridgeReadyDiscoveryValidationAndExport() {
-        assertTrue("bridge never became ready", BridgeClient.waitForBridge(90_000))
+        assertTrue("bridge never became ready: ${BridgeClient.health()}", BridgeClient.waitForBridge(90_000))
         val health = BridgeClient.health()
         assertEquals("3.1.1", health.optString("version"))
         assertEquals("READY", health.optString("backend"))
