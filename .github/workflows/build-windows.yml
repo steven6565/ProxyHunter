@@ -22,7 +22,7 @@ jobs:
       - name: Build portable EXE
         run: |
           cd desktop
-          python -m PyInstaller --onefile --windowed --clean --noconfirm --distpath ../builds ProxyHunter.spec
+          python build_windows.py
       - name: Smoke test EXE startup
         run: |
           cd builds
