@@ -8,6 +8,7 @@ on:
 jobs:
   windows:
     runs-on: windows-2022
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -37,6 +38,7 @@ jobs:
           Start-Sleep -Seconds 8
           curl.exe -s http://127.0.0.1:8000/health
       - name: Clean-directory packaged EXE smoke test
+        timeout-minutes: 5
         env:
           PROXYHUNTER_BACKEND_URL: http://127.0.0.1:8000
           PROXYHUNTER_API_KEY: testkey
@@ -44,7 +46,8 @@ jobs:
           New-Item -ItemType Directory -Force -Path clean-test | Out-Null
           Copy-Item builds/ProxyHunter.exe clean-test/ProxyHunter.exe -Force
           cd clean-test
-          Start-Process -FilePath (Resolve-Path .\ProxyHunter.exe) -ArgumentList '--selftest' -Wait
+          $p = Start-Process -FilePath (Resolve-Path .\ProxyHunter.exe) -ArgumentList '--selftest' -PassThru
+          if (-not $p.WaitForExit(180000)) { $p.Kill(); throw 'Selftest timed out' }
           Start-Sleep -Seconds 2
           if (!(Test-Path selftest.json)) { throw 'Selftest marker missing' }
           $result = Get-Content selftest.json -Raw | ConvertFrom-Json
@@ -55,8 +58,8 @@ jobs:
           Write-Host "Sections: $($result.sections -join ', ')"
           Get-Content selftest.json
       - name: Stop backend
+        if: always()
         run: |
-          if (Test-Path backend-data/server.pid) { Stop-Process -Id (Get-Content backend-data/server.pid) -Force -ErrorAction SilentlyContinue }
           Get-Process python -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
       - name: Rename portable executable
         run: |

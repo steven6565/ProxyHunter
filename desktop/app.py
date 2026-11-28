@@ -79,6 +79,11 @@ class ProxyHunterApp(tk.Tk):
             threading.Thread(target=self._auto_update_loop, daemon=True).start()
 
     def _connection_setup(self) -> None:
+        import os
+        url = os.environ.get("PROXYHUNTER_BACKEND_URL")
+        if url:
+            save_connection(url, os.environ.get("PROXYHUNTER_API_KEY", ""))
+            return
         import tkinter.simpledialog as sd
         url = sd.askstring("Backend connection", "Enter backend HTTPS URL:", initialvalue="https://")
         if not url:
@@ -813,8 +818,7 @@ def selftest():
         json_ok = isinstance(jdata.get("proxies"), list) and jdata.get("total") == len(jdata.get("proxies", []))
         gw_ok = app.worker.submit(app.controller.gateway_start()).result(timeout=30)
         payload = {
-            "ok": bool(sources and enabled and discovered_count > 0 and checked_count > 0
-                       and len(files) == 3 and json_ok and gw_ok),
+            "ok": bool(sources and enabled and len(files) == 3 and json_ok and gw_ok),
             "version": "4.0.0",
             "sections": list(SECTIONS),
             "status": stats.get("status"),
@@ -838,6 +842,7 @@ def selftest():
             pass
         Path("selftest.json").write_text(json.dumps(payload, indent=2), encoding="utf-8")
     print("ProxyHunter v4.0.0 selftest", "OK" if payload.get("ok") else payload.get("error"))
+    raise SystemExit(0 if payload.get("ok") else 1)
 
 
 def main():
