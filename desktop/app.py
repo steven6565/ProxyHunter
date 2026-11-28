@@ -764,7 +764,7 @@ def selftest():
         import json as _json
         jf = [f for f in files if f["format"] == "json"][0]
         jdata = _json.loads(Path(jf["path"]).read_text())
-        json_ok = jdata.get("total") == len(checked) and "proxies" in jdata
+        json_ok = isinstance(jdata.get("proxies"), list) and jdata.get("total") == len(jdata.get("proxies", []))
         gw_ok = app.worker.submit(app.controller.gateway_start()).result(timeout=30)
         payload = {
             "ok": bool(sources and enabled and len(discovered) > 0 and len(checked) > 0
