@@ -1,7 +1,7 @@
 {
   "version": "4.0.0",
-  "timestamp": "2026-11-28T17:50:09Z",
-  "workspace": "/data/user/0/ai.antigem/files/usr/tmp/proxyhunter-v2-tests-kv4hrxsg",
+  "timestamp": "2026-11-28T17:57:59Z",
+  "workspace": "/data/user/0/ai.antigem/files/usr/tmp/proxyhunter-v2-tests-5xt3zwel",
   "results": [
     {
       "name": "01_python_syntax_compilation",
@@ -36,7 +36,7 @@
     {
       "name": "07_gateway_startup",
       "status": "PASS",
-      "detail": "endpoint=http://127.0.0.1:39071, running=True"
+      "detail": "endpoint=http://127.0.0.1:45559, running=True"
     },
     {
       "name": "08_single_stable_endpoint",
@@ -71,7 +71,7 @@
     {
       "name": "14_socks5_upstream",
       "status": "PASS",
-      "detail": "(200, '208.67.220.220')"
+      "detail": "(200, '9.9.9.9')"
     },
     {
       "name": "15_failed_proxy_handling",
@@ -91,7 +91,7 @@
     {
       "name": "18_timeout_handling",
       "status": "PASS",
-      "detail": "status=502, elapsed=1.02s"
+      "detail": "status=502, elapsed=1.01s"
     },
     {
       "name": "19_authentication_and_hashing",
@@ -116,7 +116,7 @@
     {
       "name": "23_automatic_pool_refresh",
       "status": "PASS",
-      "detail": "callback calls=1, last_refresh=2026-11-28T17:49:26Z"
+      "detail": "callback calls=1, last_refresh=2026-11-28T17:57:14Z"
     },
     {
       "name": "24_graceful_shutdown",
@@ -131,12 +131,12 @@
     {
       "name": "26_concurrency_benchmarks",
       "status": "PASS",
-      "detail": "worst success rate=100.0%; 10:10/10@132.7rps; 50:50/50@151.7rps; 100:100/100@136.0rps; 200:200/200@108.4rps; 500:500/500@130.6rps"
+      "detail": "worst success rate=100.0%; 10:10/10@119.6rps; 50:50/50@117.0rps; 100:100/100@107.4rps; 200:200/200@103.4rps; 500:500/500@98.2rps"
     },
     {
       "name": "27_memory_leak_check",
       "status": "PASS",
-      "detail": "growth=0.07 MB over 200 requests"
+      "detail": "growth=0.06 MB over 200 requests"
     },
     {
       "name": "28_fd_leak_check",
@@ -146,7 +146,7 @@
     {
       "name": "30_long_duration_stability",
       "status": "PASS",
-      "detail": "30s run, 824 successful requests, gateway running=True"
+      "detail": "30s run, 848 successful requests, gateway running=True"
     },
     {
       "name": "29_output_file_integrity",
@@ -177,31 +177,31 @@
       "requests": 10,
       "ok": 10,
       "seconds": 0.08,
-      "rps": 132.7
+      "rps": 119.6
     },
     "50": {
       "requests": 50,
       "ok": 50,
-      "seconds": 0.33,
-      "rps": 151.7
+      "seconds": 0.43,
+      "rps": 117.0
     },
     "100": {
       "requests": 100,
       "ok": 100,
-      "seconds": 0.74,
-      "rps": 136.0
+      "seconds": 0.93,
+      "rps": 107.4
     },
     "200": {
       "requests": 200,
       "ok": 200,
-      "seconds": 1.85,
-      "rps": 108.4
+      "seconds": 1.93,
+      "rps": 103.4
     },
     "500": {
       "requests": 500,
       "ok": 500,
-      "seconds": 3.83,
-      "rps": 130.6
+      "seconds": 5.09,
+      "rps": 98.2
     }
   }
 }
