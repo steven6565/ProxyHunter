@@ -10,6 +10,8 @@ from __future__ import annotations
 import asyncio
 import base64
 import gc
+import hashlib
+import hmac
 import json
 import os
 import py_compile
@@ -768,6 +770,29 @@ async def test_security_dns_and_loopback() -> None:
     app.close()
 
 
+
+def test_update_manifest_verification() -> None:
+    """Updater requires a valid HMAC manifest and a real SHA-256 for the asset."""
+    from proxyhunter import updater
+
+    digest = "a" * 64
+    manifest = {"asset": "ProxyHunter_v9.9.9_Windows.exe", "sha256": digest,
+                "size": 1234, "version": "9.9.9"}
+    signature = hmac.new(updater._UPDATE_KEY, updater._canonical(manifest), hashlib.sha256).hexdigest()
+    signed = dict(manifest, signature=signature)
+    verified = updater._verify_manifest(signed)
+    tampered = dict(signed)
+    tampered["sha256"] = "b" * 64
+    rejected = not updater._verify_manifest(tampered)
+    sums = f"{digest}  ProxyHunter_v9.9.9_Windows.exe\n{'c' * 64} *Other.exe\n"
+    parsed = (updater._sha256_from_sums(sums, "ProxyHunter_v9.9.9_Windows.exe") == digest
+              and updater._sha256_from_sums(sums, "Other.exe") == "c" * 64
+              and updater._sha256_from_sums(sums, "Missing.exe") == "")
+    ok = verified and rejected and parsed
+    record("34_update_manifest_verification", "PASS" if ok else "FAIL",
+           f"hmac={verified}, tamper_rejected={rejected}, sha256sums={parsed}")
+
+
 def test_packaged_sources_seeding() -> None:
     """Fresh packaged installs must get real sources, never an empty file."""
     empty = WORK / "sources-empty.json"
@@ -822,6 +847,7 @@ async def main_async() -> None:
     await test_tls_listener()
     await test_security_dns_and_loopback()
     test_packaged_sources_seeding()
+    test_update_manifest_verification()
 
 
 def main() -> None:

@@ -1,39 +1,40 @@
-# ProxyHunter v3.2.0 — Desktop & Mobile Edition (packaged discovery fixes)
+# ProxyHunter v4.0.0 — Centralized Linux Backend + Lightweight Windows Client
 
-> **v3.0 adds a native Kotlin/Jetpack Compose Android app, a lightweight Tkinter Windows desktop app, a shared backend controller, an export engine, and reproducible APK/EXE build workflows.** The proven Python backend and all v2 features are preserved. The CLI remains available as an advanced mode: `python3 main.py`.
->
-> **v3.1.0:** fixes the Android Find Proxies crash (missing `rich` in Chaquopy → bridge import failure → uncaught Kotlin coroutine exception), adds worker-selection dialog, automatic backend/gateway startup with independent Internet/Backend/Gateway statuses, and compact-layout fixes. See `TEST_REPORT.md` for root-cause evidence.
->
-> **Build status:** v3.1 APK/EXE/Setup were rebuilt by GitHub Actions and verified as genuine files. Android is debug-signed; Windows binaries are unsigned. Physical-device and interactive GUI tests remain **NOT TESTED** in this environment.
+> **v4.0.0 architecture:** discovery, validation, SQLite storage, exports and the rotating gateway run on a Linux backend (`server/`, FastAPI, API key + HTTPS). The Windows app is a thin client (`desktop/`, Tkinter onefile EXE) that connects over HTTP(S), remembers the backend URL + API key securely (DPAPI on Windows, owner-only fallback for Wine/Winlator), and reconnects automatically on startup. **The Android app is unchanged in this release.**
 
-## v3.0 frontends
+## v4.0.0 highlights
 
-### Android (`com.proxyhunter.app`, Android 8.0+)
-- Five tabs: **Home, Proxies, Gateway, Downloads, Settings**.
-- Premium dark theme (optional light), rounded cards, real statistics only.
-- Foreground service with persistent notification and Stop action; Chaquopy hosts the shared Python backend.
-- Searchable/filterable proxy browser with copy buttons; country selector with flags and validated counts; export/share to `Download/ProxyHunter/`.
-- Minimal permissions: INTERNET, network state, foreground service + notifications. No root or broad storage permission.
+- **One-command backend install:** `sudo bash server/install-server.sh` → systemd `proxyhunter-backend`, random API key in `.env`, health check. See `server/DEPLOYMENT.md` (VPS, Caddy HTTPS, Daytona port-forwarding, `start/stop/restart/status/logs/update-server.sh`).
+- **Windows client:** first-launch backend HTTPS URL + API key once; saved to `%APPDATA%\ProxyHunter\connection.json`; no local heavy work; modern UI, dark/light, Lite Mode preserved; internal URLs/ports hidden (Advanced Diagnostics only).
+- **Non-interactive packaged selftest:** `ProxyHunter.exe --selftest` or `PROXYHUNTER_SELFTEST=1`, `PROXYHUNTER_BACKEND_URL`/`PROXYHUNTER_API_KEY`, verifies real backend/auth/sources/discovery/export (TXT/CSV/JSON content)/gateway/resources, 165s watchdog, writes `selftest.json`, exit 0 only on success; bounded 180s `WaitForExit`, diagnostics, always-cleanup.
+- **Verified updater:** manifest HMAC-SHA256 + artifact SHA-256 (or published `SHA256SUMS.txt`) → `ProxyHunterUpdater.exe` → graceful close → wait for unlock → replace → version verify → relaunch → **rollback**; new **Restart and Update**; no `os.kill(pid, 0)`.
+- Portable EXE + Inno Setup + updater helper + source zip + signed-format `ProxyHunter_v4.0.0_manifest.json` + `SHA256SUMS.txt`. No signing key committed; unsigned unless a certificate secret is configured.
 
-### Windows 10/11 x64
-- Lightweight Tkinter desktop app (no browser engine) with nine sidebar sections: Dashboard, Proxy Discovery, Proxy Checker, Proxy List, Rotating Gateway, Downloads, Activity Logs, Settings, About.
-- Sortable multi-select proxy table, right-click copy, Ctrl+C/Ctrl+E shortcuts, background operations that never block the UI.
-- System tray, optional Windows startup, native file dialogs, default exports to `%USERPROFILE%\Downloads\ProxyHunter\`.
-- Packaging: PyInstaller portable EXE + Inno Setup installer with start-menu/desktop shortcuts and uninstall support.
+## Quick start
 
-### Project layout
-```text
-ProxyHunter/
-├── backend/     shared controller + background worker
-├── shared/      export engine (TXT/CSV/JSON, history, custom folders)
-├── proxyhunter/ preserved discovery/checker/gateway/security engine
-├── android/     Kotlin/Compose app + Chaquopy bridge
-├── desktop/     Tkinter app + PyInstaller spec + installer script
-├── assets/      original shield/nodes icon (ICO + vector drawable)
-├── tests/       controlled test suite + TLS fixtures
-├── builds/      Windows build script
-└── .github/workflows/  reproducible Android/Windows builds
+### 1. Linux backend (VPS)
+
+```bash
+sudo apt-get update -y && sudo apt-get install -y git curl
+git clone https://github.com/steven6565/ProxyHunter.git && cd ProxyHunter
+sudo bash server/install-server.sh        # prints API base URL + API key
 ```
+
+Production HTTPS + firewall guidance is in `server/DEPLOYMENT.md`.
+
+### 2. Windows client
+
+Download `ProxyHunter_v4.0.0_Windows.exe` (or `ProxyHunter_v4.0.0_Setup.exe` / portable ZIP with `ProxyHunterUpdater.exe`) from Releases. On first launch enter the backend HTTPS URL and API key once. Dashboard → **Find Proxies** starts discovery on the server; **Download Proxies** downloads the server-generated export.
+
+### 3. Verified evidence
+
+- `34/34` backend tests PASS (`python3 tests/test_suite.py`); `python3 -m compileall` clean.
+- Windows CI PASS: packaged EXE selftest `ok:true`, 19 sources / 16 enabled, `discovered=41626`, `export_total=17197`, JSON/CSV/TXT verified, gateway ONLINE, auth + connection round-trip, bundled resources; updater replace/version/rollback PASS.
+- **NOT TESTED in this environment:** real VPS/Daytona deployment + HTTPS reverse proxy, Winlator/Wine runtime, physical Android. No claim of these is made. `server/DEPLOYMENT.md` gives exact commands for a real VPS.
+
+### Android
+
+Unchanged in v4.0.0. See `android/` and `TEST_REPORT.md`.
 
 ---
 

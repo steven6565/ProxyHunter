@@ -57,6 +57,10 @@ RED = "#EF4444"
 MUTED = "#94A3B8"
 TEXT = "#E6EDF3"
 
+# dark/light palettes
+DARK_PALETTE = {"CHARCOAL": CHARCOAL, "NAVY": NAVY, "SURFACE": SURFACE, "SURFACE2": SURFACE2, "MUTED": MUTED, "TEXT": TEXT}
+LIGHT_PALETTE = {"CHARCOAL": "#F8FAFC", "NAVY": "#E2E8F0", "SURFACE": "#FFFFFF", "SURFACE2": "#EEF2F7", "MUTED": "#64748B", "TEXT": "#0F172A"}
+
 COUNTRY_FLAGS = {
     "US": "🇺🇸", "IN": "🇮🇳", "GB": "🇬🇧", "DE": "🇩🇪", "FR": "🇫🇷",
     "CA": "🇨🇦", "AU": "🇦🇺", "JP": "🇯🇵", "CN": "🇨🇳", "RU": "🇷🇺",
@@ -91,12 +95,15 @@ class ProxyHunterApp(tk.Tk):
         self.pending: list = []
         threading.Thread(target=self._stats_loop, daemon=True).start()
         self.dark = True
+        self.lite_mode = False
+        self.palette = dict(DARK_PALETTE)
         self.export_dir = default_export_dir(desktop=True)
         self._pending_update = None
         self._pending_update_version = ""
         self._styles()
         self._layout()
         self._bind_keys()
+        self._apply_theme(self.palette, self.palette)
         self.after(200, self._poll)
         self.protocol("WM_DELETE_WINDOW", self.on_close)
         if self.controller.config.get("auto_update", True):
@@ -124,7 +131,7 @@ class ProxyHunterApp(tk.Tk):
                 asyncio.run(self.controller.refresh_stats())
             except Exception:  # noqa: BLE001
                 pass
-            time.sleep(1)
+            time.sleep(2 if self.lite_mode else 1)
 
     # ---------------------------------------------------------------- styling
     def _styles(self) -> None:
@@ -133,25 +140,103 @@ class ProxyHunterApp(tk.Tk):
             style.theme_use("clam")
         except tk.TclError:
             pass
-        style.configure("TFrame", background=CHARCOAL)
-        style.configure("Side.TFrame", background=NAVY)
-        style.configure("Card.TFrame", background=SURFACE, relief="flat")
-        style.configure("TLabel", background=CHARCOAL, foreground=TEXT, font=("Segoe UI", 10))
-        style.configure("Card.TLabel", background=SURFACE, foreground=TEXT, font=("Segoe UI", 10))
-        style.configure("Muted.TLabel", background=CHARCOAL, foreground=MUTED, font=("Segoe UI", 9))
-        style.configure("Title.TLabel", background=CHARCOAL, foreground=TEXT, font=("Segoe UI", 18, "bold"))
-        style.configure("Good.TLabel", background=CHARCOAL, foreground=GREEN, font=("Segoe UI", 10, "bold"))
-        style.configure("Bad.TLabel", background=CHARCOAL, foreground=RED, font=("Segoe UI", 10, "bold"))
+        p = getattr(self, "palette", DARK_PALETTE)
+        charcoal, navy, surface, surface2, muted, text = (
+            p["CHARCOAL"], p["NAVY"], p["SURFACE"], p["SURFACE2"], p["MUTED"], p["TEXT"])
+        style.configure("TFrame", background=charcoal)
+        style.configure("Side.TFrame", background=navy)
+        style.configure("Card.TFrame", background=surface, relief="flat")
+        style.configure("TLabel", background=charcoal, foreground=text, font=("Segoe UI", 10))
+        style.configure("Card.TLabel", background=surface, foreground=text, font=("Segoe UI", 10))
+        style.configure("Muted.TLabel", background=charcoal, foreground=muted, font=("Segoe UI", 9))
+        style.configure("Title.TLabel", background=charcoal, foreground=text, font=("Segoe UI", 18, "bold"))
+        style.configure("Good.TLabel", background=charcoal, foreground=GREEN, font=("Segoe UI", 10, "bold"))
+        style.configure("Bad.TLabel", background=charcoal, foreground=RED, font=("Segoe UI", 10, "bold"))
         style.configure("TButton", background=ACCENT, foreground="white", borderwidth=0, padding=10, font=("Segoe UI", 10, "bold"))
         style.map("TButton", background=[("active", "#2563EB")])
-        style.configure("Secondary.TButton", background=SURFACE2, foreground=TEXT, borderwidth=0, padding=8)
-        style.map("Secondary.TButton", background=[("active", "#2A3A5E")])
-        style.configure("TEntry", fieldbackground=SURFACE, foreground=TEXT)
-        style.configure("TCombobox", fieldbackground=SURFACE, foreground=TEXT)
-        style.configure("Treeview", fieldbackground=SURFACE, background=SURFACE, foreground=TEXT, rowheight=26, font=("Segoe UI", 9))
-        style.configure("Treeview.Heading", background=SURFACE2, foreground=TEXT, font=("Segoe UI", 9, "bold"))
-        style.configure("TProgressbar", background=GREEN, troughcolor=NAVY)
-        style.configure("TCheckbutton", background=CHARCOAL, foreground=TEXT)
+        style.configure("Secondary.TButton", background=surface2, foreground=text, borderwidth=0, padding=8)
+        style.map("Secondary.TButton", background=[("active", surface2)])
+        style.configure("TEntry", fieldbackground=surface, foreground=text)
+        style.configure("TCombobox", fieldbackground=surface, foreground=text)
+        style.configure("Treeview", fieldbackground=surface, background=surface, foreground=text, rowheight=26, font=("Segoe UI", 9))
+        style.configure("Treeview.Heading", background=surface2, foreground=text, font=("Segoe UI", 9, "bold"))
+        style.configure("TProgressbar", background=GREEN, troughcolor=navy)
+        style.configure("TCheckbutton", background=charcoal, foreground=text)
+
+    def _apply_theme(self, old: dict, new: dict) -> None:
+        """Re-apply a palette to ttk styles and every Tk widget."""
+        mapping = {old.get(key): new.get(key) for key in old if key in new}
+        mapping.pop(None, None)
+        try:
+            self.configure(bg=new.get("CHARCOAL", CHARCOAL))
+        except tk.TclError:
+            pass
+        try:
+            self._styles()
+        except Exception:  # noqa: BLE001
+            pass
+        def walk(widget) -> None:
+            try:
+                for opt in ("bg", "fg", "background", "foreground", "activebackground",
+                            "activeforeground", "selectcolor", "insertbackground",
+                            "troughcolor", "fieldbackground"):
+                    try:
+                        current = widget.cget(opt)
+                    except (tk.TclError, TypeError):
+                        continue
+                    if isinstance(current, str) and current in mapping and mapping[current] != current:
+                        try:
+                            widget.configure(**{opt: mapping[current]})
+                        except (tk.TclError, TypeError):
+                            pass
+            except tk.TclError:
+                pass
+            for child in widget.winfo_children():
+                walk(child)
+        try:
+            walk(self)
+        except tk.TclError:
+            pass
+        try:
+            self._animate_buttons(self)
+        except tk.TclError:
+            pass
+
+    def _animate_buttons(self, widget) -> None:
+        """Subtle hover animation; disabled in Lite Mode."""
+        try:
+            if isinstance(widget, tk.Button):
+                original = widget.cget("relief") or "raised"
+                def enter(_e, w=widget, o=original):
+                    if self.lite_mode:
+                        return
+                    try:
+                        w.config(relief="sunken")
+                    except tk.TclError:
+                        pass
+                def leave(_e, w=widget, o=original):
+                    try:
+                        w.config(relief=o)
+                    except tk.TclError:
+                        pass
+                widget.bind("<Enter>", enter)
+                widget.bind("<Leave>", leave)
+            for child in widget.winfo_children():
+                self._animate_buttons(child)
+        except tk.TclError:
+            pass
+
+    def _toggle_theme(self) -> None:
+        self.dark = not self.dark
+        old = dict(self.palette)
+        self.palette = dict(LIGHT_PALETTE if not self.dark else DARK_PALETTE)
+        try:
+            self._apply_theme(old, self.palette)
+        except Exception:  # noqa: BLE001
+            pass
+
+    def _toggle_lite_mode(self) -> None:
+        self.lite_mode = bool(self.lite_var.get())
 
     # ---------------------------------------------------------------- layout
     def _layout(self) -> None:
@@ -381,6 +466,11 @@ class ProxyHunterApp(tk.Tk):
                   command=self._save_settings).pack(anchor="w", padx=14, pady=6)
         tk.Button(card, text="Change Backend Connection", bg=SURFACE2, fg=TEXT, bd=0,
                   padx=10, pady=6, command=self._change_connection).pack(anchor="w", padx=14, pady=4)
+        tk.Button(card, text="Toggle Dark / Light", bg=SURFACE2, fg=TEXT, bd=0,
+                  padx=10, pady=6, command=self._toggle_theme).pack(anchor="w", padx=14, pady=4)
+        self.lite_var = tk.BooleanVar(value=self.lite_mode)
+        tk.Checkbutton(card, text="Lite Mode (reduce animation + polling)", variable=self.lite_var,
+                       bg=SURFACE, fg=TEXT, selectcolor=SURFACE2, command=self._toggle_lite_mode).pack(anchor="w", padx=14, pady=4)
         self.auto_update_var = tk.BooleanVar(value=bool(self.controller.config.get("auto_update", True)))
         tk.Checkbutton(card, text="Enable automatic updates", variable=self.auto_update_var, bg=SURFACE, fg=TEXT,
                        selectcolor=SURFACE2, command=self._save_auto_update).pack(anchor="w", padx=14, pady=4)
@@ -743,7 +833,7 @@ class ProxyHunterApp(tk.Tk):
         self._update_stats()
         self._update_table()
         self._update_history()
-        self.after(250, self._poll)
+        self.after(1000 if self.lite_mode else 250, self._poll)
 
     def _update_stats(self):
         try:

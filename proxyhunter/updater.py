@@ -60,6 +60,17 @@ def _verify_manifest(manifest: dict) -> bool:
     return hmac.compare_digest(expected, str(signature))
 
 
+def _sha256_from_sums(text: str, asset_name: str) -> str:
+    """Return the SHA-256 listed for *asset_name* in a SHA256SUMS file."""
+    for line in str(text).splitlines():
+        parts = line.split()
+        if len(parts) >= 2 and parts[-1].lstrip("*") == asset_name:
+            digest = parts[0].lower()
+            if len(digest) == 64 and all(ch in "0123456789abcdef" for ch in digest):
+                return digest
+    return ""
+
+
 def check_for_update(timeout: float = 10.0) -> dict:
     """Return ``{available, version, url, sha256, size, notes, error}``."""
     global _last_result, _last_check
@@ -80,6 +91,7 @@ def check_for_update(timeout: float = 10.0) -> dict:
             with urllib.request.urlopen(req, timeout=timeout) as response:
                 release = json.load(response)
             latest = str(release.get("tag_name", "")).lstrip("vV")
+            newer = _parse_version(latest) > _parse_version(_current_version())
             assets = {a.get("name"): a for a in release.get("assets", [])}
             manifest_name = f"ProxyHunter_v{latest}_manifest.json"
             manifest_asset = assets.get(manifest_name)
@@ -90,28 +102,41 @@ def check_for_update(timeout: float = 10.0) -> dict:
                     result["error"] = "manifest signature verification failed"
                     _last_result = result
                     return dict(result)
-                if _parse_version(latest) > _parse_version(_current_version()):
-                    result.update({
-                        "available": True,
-                        "version": latest,
-                        "url": assets.get(manifest.get("asset", ""), {}).get("browser_download_url", ""),
-                        "sha256": manifest.get("sha256", ""),
-                        "size": int(manifest.get("size", 0)),
-                        "notes": str(release.get("body", ""))[:2000],
-                    })
-            else:
-                # Fall back to the release asset + a SHA256SUMS file.
-                asset_name = f"ProxyHunter_v{latest}_Windows.exe"
+                asset_name = str(manifest.get("asset", ""))
                 asset = assets.get(asset_name)
-                if asset and _parse_version(latest) > _parse_version(_current_version()):
+                digest = str(manifest.get("sha256", "")).strip().lower()
+                if not asset or len(digest) != 64:
+                    result["error"] = "manifest is missing a valid asset or SHA-256"
+                elif newer:
                     result.update({
                         "available": True,
                         "version": latest,
                         "url": asset.get("browser_download_url", ""),
-                        "sha256": "",
+                        "sha256": digest,
+                        "size": int(manifest.get("size", 0) or asset.get("size", 0)),
+                        "notes": str(release.get("body", ""))[:2000],
+                    })
+            elif newer:
+                # Fall back to the release asset, but only with a published
+                # SHA-256.  Never offer an unverifiable update.
+                asset_name = f"ProxyHunter_v{latest}_Windows.exe"
+                asset = assets.get(asset_name)
+                sums_asset = assets.get("SHA256SUMS.txt")
+                digest = ""
+                if sums_asset:
+                    with urllib.request.urlopen(sums_asset["browser_download_url"], timeout=timeout) as response:
+                        digest = _sha256_from_sums(response.read().decode("utf-8", "replace"), asset_name)
+                if asset and digest:
+                    result.update({
+                        "available": True,
+                        "version": latest,
+                        "url": asset.get("browser_download_url", ""),
+                        "sha256": digest,
                         "size": int(asset.get("size", 0)),
                         "notes": str(release.get("body", ""))[:2000],
                     })
+                else:
+                    result["error"] = "no signed manifest or SHA256SUMS entry for the update"
         except Exception as exc:  # noqa: BLE001
             result["error"] = f"{type(exc).__name__}: {exc}"
         _last_result = result

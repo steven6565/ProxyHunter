@@ -1,5 +1,31 @@
 # Changelog
 
+## v4.0.0 — Centralized backend + lightweight Windows client (2026-11-28)
+
+### Architecture
+- New Linux backend (`server/`, FastAPI) wrapping the proven `BackendController`/`BackendWorker`. One-command installer `sudo bash server/install-server.sh` (systemd + Daytona/nohup fallback, random API key, `.env` 0600, health check) and `server/DEPLOYMENT.md` (VPS, Caddy HTTPS, Daytona port-forwarding, management commands).
+- Windows EXE is a thin `RemoteBackendController`/`RemoteBackendWorker` HTTP client; no local discovery/validation/export. Connection remembered at `%APPDATA%\ProxyHunter\connection.json`, API key protected with Windows DPAPI (owner-only fallback for Wine/Winlator); first-launch setup asks once; future updates preserve it.
+- Backend endpoints: `/health`, `/api/stats`, `/api/discover`, `/api/check`, `/api/refresh`, `/api/stop`, `/api/proxies` (working_only + limit), `/api/sources`, `/api/source_set`, `/api/source_test`, `/api/export` (txt/csv/json, working_only), `/api/download/{name}`, `/api/gateway_start|stop|restart`, `/api/gateway_countries`, `/api/gateway_mode`, `/api/gateway_auth`, `/api/countries`, `/api/capacity`, `/api/rotation_modes`, `/api/worker_presets`, `/api/events`, `/api/connectivity`, `/ws` (query-key or first-message auth). API key via `X-API-Key`.
+- `Storage.get_all()` added for all-proxy export; `working_only:false` exports every stored/discovered proxy; exports always written to the fixed data directory and downloaded to the client.
+- Internal gateway URL/ports hidden from the dashboard; available only in Settings → Advanced Diagnostics. No fake progress.
+
+### Selftest
+- `selftest_mode.py` (stdlib-only) dispatched at the top of `desktop/app.py`, before Tkinter/GUI/single-instance/updater; `--selftest` and `PROXYHUNTER_SELFTEST=1`; `PROXYHUNTER_BACKEND_URL`/`PROXYHUNTER_API_KEY`; 165s watchdog; `os._exit`; always writes `selftest.json` + `selftest.log`.
+- Verifies real backend health, auth rejects a wrong key, saved connection round-trip, source configuration, real discovery, validation trigger, three export formats downloaded, JSON `total` == `proxies` length > 0, CSV header + rows, non-empty TXT, ONLINE gateway, packaged `sources.json`/`config.json`, countries/capacity/rotation modes; exit 0 only on `ok:true`.
+- CI starts `server/main.py` on 127.0.0.1:8000 with key `testkey`, builds the packaged EXE, runs a **bounded** `WaitForExit` (max 180s; 210s harness) with log/crash capture and always-cleans-up backend; asserts all fields; 5-minute step, 20-minute job.
+
+### Updater
+- Verified flow: download → verify HMAC-SHA256 manifest (or published `SHA256SUMS.txt`) → verify SHA-256 of the artifact → `ProxyHunterUpdater.exe` helper → graceful close → wait for process exit/unlock → replace → relaunch → verify reported version → rollback restore on any failure; corrupt/truncated replacements rejected via PE pre-check; new **Restart and Update**; never stuck at “Installing on Exit”; no `os.kill(pid, 0)` (Windows-safe `OpenProcess`, shell `kill -0` only on Linux); `updater.log`; update preserves `connection.json`.
+- CI updater test: replace + version + relaunch, corrupt pre-check, real rollback with a valid-but-wrong EXE.
+
+### Tests (evidence)
+- 34/34 `python3 tests/test_suite.py` PASS (added `34_update_manifest_verification`); `python3 -m compileall` clean.
+- GitHub Actions Windows CI `build-windows.yml` PASS (run **46179352342**; selftest run **46178803988**).
+- Packaged EXE selftest on clean Windows Server 2022: `ok:true`, 19 sources / 16 enabled, `discovered=41626`, `export_total=17197`, `json_verified/csv_verified/txt_verified=true`, `gateway_ok=true`, `auth_ok=true`, `connection_saved=true`, `resources_ok=true`, `duration≈7.6s`.
+- Updater replace / version / rollback smoke test PASS.
+- **NOT TESTED:** real VPS/Daytona deployment and HTTPS reverse proxy, Winlator/Wine runtime, physical Android device (out of scope). No claim of these is made.
+- Android app intentionally unchanged. No signing key is committed; artifacts are unsigned unless a signing certificate secret is configured.
+
 ## v3.1.2 — Packaged discovery, TLS trust store and source seeding (2026-11-27)
 
 ### Windows
