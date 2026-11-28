@@ -1,6 +1,6 @@
 ; Inno Setup script for ProxyHunter v3.0 Windows installer (64-bit)
 #define MyAppName "ProxyHunter"
-#define MyAppVersion "3.1.2"
+#define MyAppVersion "3.2.0"
 #define MyAppPublisher "ProxyHunter Project"
 #define MyAppExeName "ProxyHunter.exe"
 
@@ -12,7 +12,7 @@ AppPublisher={#MyAppPublisher}
 DefaultDirName={autopf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 OutputDir=..\builds
-OutputBaseFilename=ProxyHunter_v3.1.2_Setup
+OutputBaseFilename=ProxyHunter_v3.2.0_Setup
 SetupIconFile=ProxyHunter.ico
 Compression=lzma2
 SolidCompression=yes
@@ -31,7 +31,8 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 Name: "startup"; Description: "Launch ProxyHunter when Windows starts"; GroupDescription: "Startup"; Flags: unchecked
 
 [Files]
-Source: "..\builds\ProxyHunter_v3.1.2_Windows.exe"; DestDir: "{app}"; DestName: "ProxyHunter.exe"; Flags: ignoreversion
+Source: "..\builds\ProxyHunter_v3.2.0_Windows.exe"; DestDir: "{app}"; DestName: "ProxyHunter.exe"; Flags: ignoreversion
+Source: "..\builds\ProxyHunterUpdater.exe"; DestDir: "{app}"; DestName: "ProxyHunterUpdater.exe"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"

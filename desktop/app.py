@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""ProxyHunter v3.1.2 Windows desktop application (Tkinter, no browser engine)."""
+"""ProxyHunter v3.2.0 Windows desktop application (Tkinter, no browser engine)."""
 
 from __future__ import annotations
 
 import json
 import os
 import queue
+import time
 import sys
 import threading
 import tkinter as tk
@@ -37,7 +38,7 @@ SECTIONS = [
 class ProxyHunterApp(tk.Tk):
     def __init__(self) -> None:
         super().__init__()
-        self.title("ProxyHunter v3.1.2 — Desktop Edition")
+        self.title("ProxyHunter v3.2.0 — Desktop Edition")
         self.geometry("1180x760")
         self.minsize(940, 620)
         self.configure(bg=CHARCOAL)
@@ -54,6 +55,8 @@ class ProxyHunterApp(tk.Tk):
         self._bind_keys()
         self.after(200, self._poll)
         self.protocol("WM_DELETE_WINDOW", self.on_close)
+        if self.controller.config.get("auto_update", True):
+            threading.Thread(target=self._auto_update_loop, daemon=True).start()
 
     # ----------------------------------------------------------------- styling
     def _styles(self) -> None:
@@ -93,7 +96,7 @@ class ProxyHunterApp(tk.Tk):
             self.nav.insert("", "end", text="  " + section, tags=(section,))
         self.nav.selection_set(self.nav.get_children()[0])
         self.nav.bind("<<TreeviewSelect>>", self._on_nav)
-        ttk.Label(side, text="v3.1.2 · local gateway", style="Muted.TLabel").pack(side="bottom", pady=14)
+        ttk.Label(side, text="v3.2.0 · local gateway", style="Muted.TLabel").pack(side="bottom", pady=14)
 
         self.content = ttk.Frame(self, padding=18)
         self.content.grid(row=0, column=1, sticky="nsew")
@@ -178,10 +181,20 @@ class ProxyHunterApp(tk.Tk):
             ttk.Button(card, text="Save", command=self._save_settings).pack(side="left", padx=8)
             ttk.Label(card, text="Free public proxies are untrusted — never send sensitive data.",
                       style="Muted.TLabel").pack(anchor="w", pady=10)
+            updates = self._card(frame, "Automatic updates")
+            self.auto_update_var = tk.BooleanVar(value=bool(self.controller.config.get("auto_update", True)))
+            ttk.Checkbutton(updates, text="Enable automatic updates (default on)",
+                            variable=self.auto_update_var,
+                            command=self._save_auto_update).pack(anchor="w")
+            self.update_status = ttk.Label(updates, text=f"Current version: 3.2.0", style="Muted.TLabel")
+            self.update_status.pack(anchor="w", pady=4)
+            ttk.Button(updates, text="Check for Updates", command=self._check_updates_now).pack(anchor="w", pady=4)
+            self.update_progress = ttk.Progressbar(updates, mode="determinate", maximum=100)
+            self.update_progress.pack(fill="x", pady=4)
         else:
             card = self._card(frame, "About")
             for line in (
-                "ProxyHunter v3.1.2 — Desktop & Mobile Edition",
+                "ProxyHunter v3.2.0 — Desktop & Mobile Edition",
                 "Preserved v2/v3 async backend, six rotation modes, country filters.",
                 "Gateway: http://127.0.0.1:8080 (localhost by default).",
                 "No browser engine bundled. Lightweight Tkinter UI.",
@@ -402,6 +415,51 @@ class ProxyHunterApp(tk.Tk):
         except ValueError:
             messagebox.showerror("ProxyHunter", "Enter a numeric timeout.")
 
+    def _save_auto_update(self) -> None:
+        self.controller.config["auto_update"] = bool(self.auto_update_var.get())
+        try:
+            from proxyhunter.config import save_config
+            save_config(self.controller.config)
+        except Exception:  # noqa: BLE001
+            pass
+
+    def _auto_update_loop(self) -> None:
+        time.sleep(30)
+        while True:
+            try:
+                self._check_updates_now()
+            except Exception:  # noqa: BLE001
+                pass
+            time.sleep(6 * 3600)
+
+    def _check_updates_now(self) -> None:
+        self.update_status.config(text="Checking for updates...")
+        threading.Thread(target=self._update_worker, daemon=True).start()
+
+    def _update_worker(self) -> None:
+        try:
+            from proxyhunter.updater import check_for_update, download_update
+            info = check_for_update()
+            if info.get("error"):
+                self.after(0, lambda: self.update_status.config(text=f"Update check failed: {info['error']}"))
+                return
+            if not info.get("available"):
+                self.after(0, lambda: self.update_status.config(text=f"Up to date (latest {info.get('version')})"))
+                return
+            self.after(0, lambda: self.update_status.config(
+                text=f"Update available: {info['version']} — downloading..."))
+            dest = Path(os.environ.get("TEMP", ".")) / f"ProxyHunter_v{info['version']}_Windows.exe"
+            def progress(done, total):
+                if total:
+                    self.after(0, lambda d=done, t=total: self.update_progress.config(value=d / t * 100))
+            download_update(info["url"], info.get("sha256", ""), dest, progress=progress)
+            self.after(0, lambda: self.update_status.config(
+                text=f"Downloaded {info['version']}; installing on exit..."))
+            from proxyhunter.updater import schedule_install
+            schedule_install(Path(sys.executable), dest)
+        except Exception as exc:  # noqa: BLE001
+            self.after(0, lambda: self.update_status.config(text=f"Update error: {exc}"))
+
     def _sort(self, column: str) -> None:
         items = list(self.table.get_children(""))
         index = ("ip", "port", "protocol", "country", "latency", "status", "checked").index(column)
@@ -539,9 +597,10 @@ def selftest() -> None:
         discovered = app.worker.submit(app.controller.discover()).result(timeout=240)
         checked = app.worker.submit(app.controller.check(discovered[:10])).result(timeout=240)
         files = app.controller.export(str(app.export_dir), "working_proxies", formats=("txt", "csv", "json"))
+        gw_ok = app.worker.submit(app.controller.gateway_start()).result(timeout=30)
         payload = {
-            "ok": bool(sources and enabled and len(discovered) > 0 and len(checked) > 0 and len(files) == 3),
-            "version": "3.1.2",
+            "ok": bool(sources and enabled and len(discovered) > 0 and len(checked) > 0 and len(files) == 3 and gw_ok),
+            "version": "3.2.0",
             "sections": list(SECTIONS),
             "endpoint": stats.get("endpoint"),
             "status": stats.get("status"),
@@ -552,18 +611,19 @@ def selftest() -> None:
             "sources_enabled": enabled,
             "discovered": len(discovered),
             "checked": len(checked),
+            "gateway_ok": gw_ok,
             "export_files": [item["name"] for item in files],
             "config_path": str(__import__("proxyhunter.config", fromlist=["base_dir"]).base_dir()),
         }
     except Exception as exc:  # noqa: BLE001
-        payload = {"ok": False, "version": "3.1.2", "error": f"{type(exc).__name__}: {exc}"}
+        payload = {"ok": False, "version": "3.2.0", "error": f"{type(exc).__name__}: {exc}"}
     finally:
         try:
             app.on_close()
         except Exception:  # noqa: BLE001
             pass
         Path("selftest.json").write_text(json.dumps(payload, indent=2), encoding="utf-8")
-    print("ProxyHunter v3.1.2 selftest", "OK" if payload.get("ok") else payload.get("error"))
+    print("ProxyHunter v3.2.0 selftest", "OK" if payload.get("ok") else payload.get("error"))
 
 
 def main() -> None:

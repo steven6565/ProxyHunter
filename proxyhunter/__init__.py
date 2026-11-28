@@ -1,6 +1,6 @@
-"""Proxy Hunter v3.1.2 - Desktop & Mobile Edition (config/bootstrap fix)."""
+"""Proxy Hunter v3.2.0 - Desktop & Mobile Edition (config/bootstrap fix)."""
 
-__version__ = "3.1.2"
+__version__ = "3.2.0"
 __all__ = [
     "checker",
     "config",
