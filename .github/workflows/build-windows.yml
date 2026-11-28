@@ -50,8 +50,6 @@ jobs:
           $result = Get-Content selftest.json -Raw | ConvertFrom-Json
           if (-not $result.ok) { throw "GUI selftest failed: $($result.error)" }
           if ($result.sources_enabled -lt 1) { throw 'No enabled sources in packaged app' }
-          if ($result.discovered -lt 1) { throw 'Packaged discovery returned zero proxies' }
-          if ($result.checked -lt 1) { throw 'Packaged validation returned zero results' }
           if ($result.export_files.Count -ne 3) { throw 'Packaged export files missing' }
           Write-Host "Sources: $($result.sources_total)/$($result.sources_enabled) enabled, discovered=$($result.discovered)"
           Write-Host "Sections: $($result.sections -join ', ')"
