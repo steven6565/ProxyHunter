@@ -68,6 +68,7 @@ class BackendController:
         self.operation = "idle"
         self.progress = 0.0
         self._refresh_callback_set = False
+        self.last_discovered: list = []
 
     def emit(self, kind: str, data: dict) -> None:
         if kind == "log" and data.get("message"):
@@ -84,6 +85,7 @@ class BackendController:
         self.emit("discovery", {"phase": "start"})
         discovery = Discovery(self.config, self.storage, self.metrics, self.dashboard)
         proxies = await discovery.discover()
+        self.last_discovered = list(proxies)
         # Do not show a completed progress bar when discovery produced nothing:
         # the UI must reflect real work, not just "the task returned".
         self.progress = 1.0 if proxies else 0.0
@@ -99,6 +101,8 @@ class BackendController:
             targets = self.storage.get_working(
                 max_age_hours=float(self.config.get("validation_max_age_hours", 24))
             )
+            if not targets and self.last_discovered:
+                targets = list(self.last_discovered)
         else:
             targets = list(proxies)
         if limit > 0:

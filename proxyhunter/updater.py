@@ -119,13 +119,14 @@ def check_for_update(timeout: float = 10.0) -> dict:
 
 
 def download_update(url: str, expected_sha256: str, destination: Path,
-                    progress: Optional[Callable[[int, int], None]] = None) -> Path:
+                    progress: Optional[Callable[[int, int, float, float], None]] = None) -> Path:
     """Download *url* to *destination*, verifying SHA-256.  Raises on mismatch."""
     destination.parent.mkdir(parents=True, exist_ok=True)
     tmp = destination.with_suffix(destination.suffix + ".part")
     hasher = hashlib.sha256()
     total = 0
     expected_total = 0
+    started = time.monotonic()
     with urllib.request.urlopen(url, timeout=60) as response:
         expected_total = int(response.headers.get("Content-Length", "0") or 0)
         with open(tmp, "wb") as fh:
@@ -136,8 +137,14 @@ def download_update(url: str, expected_sha256: str, destination: Path,
                 fh.write(chunk)
                 hasher.update(chunk)
                 total += len(chunk)
+                elapsed = max(0.001, time.monotonic() - started)
+                speed = total / elapsed
+                eta = (expected_total - total) / speed if speed and expected_total else 0.0
                 if progress is not None:
-                    progress(total, expected_total)
+                    try:
+                        progress(total, expected_total, speed, eta)
+                    except TypeError:
+                        progress(total, expected_total)
     if expected_sha256 and hasher.hexdigest().lower() != expected_sha256.lower():
         try:
             tmp.unlink(missing_ok=True)
@@ -150,18 +157,18 @@ def download_update(url: str, expected_sha256: str, destination: Path,
 
 def schedule_install(current_exe: Path, new_exe: Path) -> None:
     """Launch the separate updater helper to replace the running EXE."""
+    import subprocess
+
     helper = current_exe.with_name("ProxyHunterUpdater.exe")
-    if not helper.is_file():
-        # Fall back to a PowerShell one-liner if the helper is missing.
-        helper = None
-    args = [str(current_exe), str(new_exe)]
-    if helper is not None:
+    args = [str(current_exe), str(new_exe), str(os.getpid())]
+    if helper.is_file():
         subprocess.Popen([str(helper)] + args, close_fds=True)
-    else:
-        script = (
-            f'$p={os.getpid()}; while (Get-Process -Id $p -ErrorAction SilentlyContinue) '
-            f'{{ Start-Sleep -Milliseconds 500 }}; Copy-Item -Force "{new_exe}" "{current_exe}"; '
-            f'Start-Process "{current_exe}"'
-        )
-        subprocess.Popen(["powershell", "-NoProfile", "-WindowStyle", "Hidden", "-Command", script],
-                         close_fds=True)
+        return
+    script = (
+        f'$p={os.getpid()}; while (Get-Process -Id $p -ErrorAction SilentlyContinue) '
+        f'{{ Start-Sleep -Milliseconds 500 }}; '
+        f'Copy-Item -Force "{new_exe}" "{current_exe}"; '
+        f'Start-Process "{current_exe}"'
+    )
+    subprocess.Popen(["powershell", "-NoProfile", "-WindowStyle", "Hidden", "-Command", script],
+                     close_fds=True)
