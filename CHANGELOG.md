@@ -20,8 +20,8 @@
 
 ### Tests (evidence)
 - 34/34 `python3 tests/test_suite.py` PASS (added `34_update_manifest_verification`); `python3 -m compileall` clean.
-- GitHub Actions Windows CI `build-windows.yml` PASS (run **46179352342**; selftest run **46178803988**).
-- Packaged EXE selftest on clean Windows Server 2022: `ok:true`, 19 sources / 16 enabled, `discovered=41626`, `export_total=17197`, `json_verified/csv_verified/txt_verified=true`, `gateway_ok=true`, `auth_ok=true`, `connection_saved=true`, `resources_ok=true`, `duration≈7.6s`.
+- GitHub Actions Windows CI `build-windows.yml` PASS (final run **46180193060**).
+- Packaged EXE selftest on clean Windows Server 2022: `ok:true`, 19 sources / 16 enabled, `discovered=42585`, `export_total=17752`, `json_verified/csv_verified/txt_verified=true`, `gateway_ok=true`, `auth_ok=true`, `connection_saved=true`, `resources_ok=true`, `duration≈7.6s`.
 - Updater replace / version / rollback smoke test PASS.
 - **NOT TESTED:** real VPS/Daytona deployment and HTTPS reverse proxy, Winlator/Wine runtime, physical Android device (out of scope). No claim of these is made.
 - Android app intentionally unchanged. No signing key is committed; artifacts are unsigned unless a signing certificate secret is configured.

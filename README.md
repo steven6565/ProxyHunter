@@ -29,7 +29,7 @@ Download `ProxyHunter_v4.0.0_Windows.exe` (or `ProxyHunter_v4.0.0_Setup.exe` / p
 ### 3. Verified evidence
 
 - `34/34` backend tests PASS (`python3 tests/test_suite.py`); `python3 -m compileall` clean.
-- Windows CI PASS: packaged EXE selftest `ok:true`, 19 sources / 16 enabled, `discovered=41626`, `export_total=17197`, JSON/CSV/TXT verified, gateway ONLINE, auth + connection round-trip, bundled resources; updater replace/version/rollback PASS.
+- Windows CI PASS (run 46180193060): packaged EXE selftest `ok:true`, 19 sources / 16 enabled, `discovered=42585`, `export_total=17752`, JSON/CSV/TXT verified, gateway ONLINE, auth + connection round-trip, bundled resources; updater replace/version/rollback PASS.
 - **NOT TESTED in this environment:** real VPS/Daytona deployment + HTTPS reverse proxy, Winlator/Wine runtime, physical Android. No claim of these is made. `server/DEPLOYMENT.md` gives exact commands for a real VPS.
 
 ### Android
