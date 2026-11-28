@@ -1,13 +1,13 @@
-ProxyHunter v3.1.2 — build status
+ProxyHunter v3.2.0 — build status
 
 Repository: https://github.com/steven6565/ProxyHunter (private)
-Release tag: v3.1.2 (commit 4684c9e)
+Release tag: v3.2.0 (commit 4684c9e)
 
-ProxyHunter_v3.1.2_Android.apk    BUILDING — CI run 46054352845 (Android). Windows-focused delivery in this round; emulator evidence pending.
-ProxyHunter_v3.1.2_Windows.exe    BUILT — CI run 46054363004. 26,094,893 bytes. Standalone PyInstaller --onefile --windowed --clean; python311.dll + Tcl/Tk embedded; certifi CA bundle collected. Clean-directory smoke test PASS: ok:true, version 3.1.2, 16/19 sources enabled, discovered=18217, checked=10, all 9 UI sections.
-ProxyHunter_v3.1.2_Setup.exe      BUILT — CI run 46054363004. Inno Setup installer.
-ProxyHunter_v3.1.2_Windows_portable.zip  BUILT — CI run 46054363004.
-ProxyHunter_v3.1.2_Source.zip      BUILT locally (376 KB).
+ProxyHunter_v3.2.0_Android.apk    BUILDING — CI run 46054352845 (Android). Windows-focused delivery in this round; emulator evidence pending.
+ProxyHunter_v3.2.0_Windows.exe    BUILT — CI run 46054363004. 26,094,893 bytes. Standalone PyInstaller --onefile --windowed --clean; python311.dll + Tcl/Tk embedded; certifi CA bundle collected. Clean-directory smoke test PASS: ok:true, version 3.1.2, 16/19 sources enabled, discovered=18217, checked=10, all 9 UI sections.
+ProxyHunter_v3.2.0_Setup.exe      BUILT — CI run 46054363004. Inno Setup installer.
+ProxyHunter_v3.2.0_Windows_portable.zip  BUILT — CI run 46054363004.
+ProxyHunter_v3.2.0_Source.zip      BUILT locally (376 KB).
 
 Windows runtime tests (clean GitHub Windows runner, run 46054363004):
 - EXE --selftest: PASS (ok:true, backend READY, gateway ONLINE, internet ONLINE, 16/19 sources enabled, discovered=18217, checked=10, all 9 UI sections).

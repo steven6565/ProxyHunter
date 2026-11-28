@@ -1,4 +1,4 @@
-# ProxyHunter v3.1.2 — Production Readiness Assessment (v3.0 baseline below)
+# ProxyHunter v3.2.0 — Production Readiness Assessment (v3.0 baseline below)
 
 ## v3.1.2 verdict
 

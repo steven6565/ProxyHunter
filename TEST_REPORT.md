@@ -1,4 +1,4 @@
-# ProxyHunter v3.1.2 — Test Report (v3.0/3.1 baseline below)
+# ProxyHunter v3.2.0 — Test Report (v3.0/3.1 baseline below)
 
 ## v3.1.2 actual results
 
