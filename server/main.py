@@ -208,11 +208,24 @@ async def export(body: dict = {}, _: bool = Depends(require_key)):
     limit = int(body.get("limit", 0) or 0)
     proxies = None
     if not working_only:
-        items = controller.storage.get_all(limit=limit)
+        items = controller.storage.get_all(limit=0)
         if not items and controller.last_discovered:
             # Discovery persists a text file; unvalidated rows may not be in
             # SQLite yet.  Export the last discovery batch in that case.
             items = list(controller.last_discovered)
+        if not items:
+            # Last-resort fallback for a freshly started backend: read the
+            # discovery text file written by the engine.
+            discovered_file = DATA_DIR / "output" / "discovered_proxies.txt"
+            if discovered_file.is_file():
+                from proxyhunter.utils import parse_proxy
+
+                for line in discovered_file.read_text(encoding="utf-8").splitlines():
+                    parsed = parse_proxy(line)
+                    if parsed is not None:
+                        items.append(parsed)
+        if limit > 0:
+            items = items[:limit]
         proxies = [item.to_dict() for item in items]
     files = controller.export(
         str(EXPORT_DIR), name, formats=formats,

@@ -25,7 +25,8 @@ VERSION = "4.0.0"
 SECTIONS = ["Dashboard", "Proxy List", "Rotating Gateway", "Downloads", "Settings", "About"]
 RESULT_FILE = Path("selftest.json")
 LOG_FILE = Path("selftest.log")
-WATCHDOG_SECONDS = 150
+WATCHDOG_SECONDS = 165
+DISCOVERY_SECONDS = 110
 
 _finished = threading.Event()
 _opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
@@ -103,9 +104,8 @@ def _wait_for_discovery(base: str, key: str, deadline: float) -> tuple[int, int,
             _, last = _call(base, key, "/api/stats", timeout=remaining)
             discovered = max(discovered, int(last.get("discovered", 0) or 0))
             checked = max(checked, int(last.get("checked", 0) or 0))
-            # Wait for the operation to finish so last_discovered is populated
-            # even when no proxy has been validated into SQLite yet.
-            if discovered > 0 and str(last.get("operation", "")).lower() == "idle":
+            operation = str(last.get("operation", "")).lower()
+            if discovered > 0 and operation in ("", "idle"):
                 break
         except Exception as exc:  # noqa: BLE001
             last = {"stats_error": f"{type(exc).__name__}: {exc}"}
@@ -214,7 +214,7 @@ def run_selftest() -> int:
         payload["discover_error"] = f"{type(exc).__name__}: {exc}"
         _log(payload["discover_error"])
 
-    discovered, checked, stats = _wait_for_discovery(base, key, time.monotonic() + 60)
+    discovered, checked, stats = _wait_for_discovery(base, key, time.monotonic() + DISCOVERY_SECONDS)
     payload["discovered"] = discovered
     payload["checked"] = checked
     payload["stats"] = stats

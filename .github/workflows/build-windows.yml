@@ -3,7 +3,7 @@ name: Build Windows v4.0.0 (portable + setup)
 on:
   workflow_dispatch:
   push:
-    tags: ['v3.*']
+    tags: ['v*']
 
 jobs:
   windows:
@@ -29,64 +29,80 @@ jobs:
         run: |
           cd desktop
           python build_updater.py
-      - name: Start backend for smoke test
-        run: |
-          $env:PROXYHUNTER_API_KEY = "testkey"
-          $env:PROXYHUNTER_DATA_DIR = "$PWD\\backend-data"
-          $env:PROXYHUNTER_GATEWAY_PORT = "18080"
-          New-Item -ItemType Directory -Force -Path backend-data | Out-Null
-          $proc = Start-Process -FilePath python -ArgumentList "server/main.py" -WorkingDirectory "$PWD" -WindowStyle Hidden -PassThru -RedirectStandardOutput backend-data/server.out -RedirectStandardError backend-data/server.err
-          $proc.Id | Out-File -Encoding ascii backend-data/server.pid
-          $healthy = $false
-          for ($i = 0; $i -lt 30; $i++) {
-            try {
-              $health = Invoke-RestMethod -Uri "http://127.0.0.1:8000/health" -TimeoutSec 3
-              if ($health.ok) { $healthy = $true; break }
-            } catch { }
-            Start-Sleep -Seconds 2
-          }
-          if (-not $healthy) {
-            Write-Host "--- backend stdout ---"; Get-Content backend-data/server.out -ErrorAction SilentlyContinue
-            Write-Host "--- backend stderr ---"; Get-Content backend-data/server.err -ErrorAction SilentlyContinue
-            throw "Backend did not become healthy"
-          }
-          Invoke-RestMethod -Uri "http://127.0.0.1:8000/health"
-      - name: Clean-directory packaged EXE smoke test
+      - name: Packaged EXE smoke test (real backend)
         timeout-minutes: 5
         env:
           PROXYHUNTER_BACKEND_URL: http://127.0.0.1:8000
           PROXYHUNTER_API_KEY: testkey
           PROXYHUNTER_SELFTEST: "1"
         run: |
-          New-Item -ItemType Directory -Force -Path clean-test | Out-Null
-          Copy-Item builds/ProxyHunter.exe clean-test/ProxyHunter.exe -Force
-          cd clean-test
-          $p = Start-Process -FilePath (Resolve-Path .\ProxyHunter.exe) -ArgumentList '--selftest' -PassThru
-          $exited = $p.WaitForExit(170000)
-          if (-not $exited) {
-            try { $p.Kill() } catch { }
-            Write-Host "--- selftest.log ---"; Get-Content selftest.log -ErrorAction SilentlyContinue
-            Write-Host "--- crash.log ---"; Get-Content crash.log -ErrorAction SilentlyContinue
-            throw "Selftest timed out after 170s"
+          # GitHub Actions terminates processes started by a step when that
+          # step ends, so the backend must live inside this step.
+          $env:PROXYHUNTER_API_KEY = "testkey"
+          $env:PROXYHUNTER_DATA_DIR = "$PWD\\backend-data"
+          $env:PROXYHUNTER_GATEWAY_PORT = "18080"
+          New-Item -ItemType Directory -Force -Path backend-data | Out-Null
+          $backend = $null
+          try {
+            $backend = Start-Process -FilePath python -ArgumentList "server/main.py" -WorkingDirectory "$PWD" -WindowStyle Hidden -PassThru -RedirectStandardOutput backend-data/server.out -RedirectStandardError backend-data/server.err
+            $backend.Id | Out-File -Encoding ascii backend-data/server.pid
+            $healthy = $false
+            for ($i = 0; $i -lt 30; $i++) {
+              try {
+                $health = Invoke-RestMethod -Uri "http://127.0.0.1:8000/health" -TimeoutSec 3
+                if ($health.ok) { $healthy = $true; break }
+              } catch { }
+              Start-Sleep -Seconds 2
+            }
+            if (-not $healthy) {
+              Write-Host "--- backend stdout ---"; Get-Content backend-data/server.out -ErrorAction SilentlyContinue
+              Write-Host "--- backend stderr ---"; Get-Content backend-data/server.err -ErrorAction SilentlyContinue
+              throw "Backend did not become healthy"
+            }
+            Write-Host "Backend healthy: $($health | ConvertTo-Json -Compress)"
+
+            New-Item -ItemType Directory -Force -Path clean-test | Out-Null
+            Copy-Item builds/ProxyHunter.exe clean-test/ProxyHunter.exe -Force
+            Push-Location clean-test
+            try {
+              $p = Start-Process -FilePath (Resolve-Path .\ProxyHunter.exe) -ArgumentList '--selftest' -PassThru
+              $exited = $p.WaitForExit(210000)
+              if (-not $exited) {
+                try { $p.Kill() } catch { }
+                Write-Host "--- selftest.log ---"; Get-Content selftest.log -ErrorAction SilentlyContinue
+                Write-Host "--- crash.log ---"; Get-Content crash.log -ErrorAction SilentlyContinue
+                throw "Selftest timed out after 210s"
+              }
+              Write-Host "Selftest exit code: $($p.ExitCode)"
+              Write-Host "--- selftest.log ---"; Get-Content selftest.log -ErrorAction SilentlyContinue
+              Write-Host "--- crash.log ---"; Get-Content crash.log -ErrorAction SilentlyContinue
+              if (!(Test-Path selftest.json)) { throw "Selftest marker missing (exit $($p.ExitCode))" }
+              $result = Get-Content selftest.json -Raw | ConvertFrom-Json
+              if (-not $result.ok) { throw "Packaged selftest failed: $($result.error)" }
+              if ($result.sources_enabled -lt 1) { throw "No enabled sources in packaged app" }
+              if ($result.discovered -lt 1) { throw "Discovery returned no proxies" }
+              if ($result.export_files.Count -ne 3) { throw "Expected 3 export files, got $($result.export_files.Count)" }
+              if (-not $result.json_verified) { throw "Exported JSON failed verification" }
+              if (-not $result.csv_verified) { throw "Exported CSV failed verification" }
+              if (-not $result.txt_verified) { throw "Exported TXT failed verification" }
+              if (-not $result.gateway_ok) { throw "Gateway did not reach ONLINE" }
+              if (-not $result.resources_ok) { throw "Packaged sources.json/config.json missing" }
+              if (-not $result.auth_ok) { throw "Backend authentication check failed" }
+              if (-not $result.connection_saved) { throw "Connection store round-trip failed" }
+              if ($p.ExitCode -ne 0) { throw "Selftest exited with $($p.ExitCode)" }
+              Write-Host "Sources: $($result.sources_total)/$($result.sources_enabled) enabled, discovered=$($result.discovered), checked=$($result.checked)"
+              Write-Host "Sections: $($result.sections -join ', ')"
+              Get-Content selftest.json
+            } finally {
+              Pop-Location
+            }
+          } finally {
+            if ($backend -and -not $backend.HasExited) {
+              Stop-Process -Id $backend.Id -Force -ErrorAction SilentlyContinue
+            }
+            Write-Host "--- backend stdout ---"; Get-Content backend-data/server.out -ErrorAction SilentlyContinue
+            Write-Host "--- backend stderr ---"; Get-Content backend-data/server.err -ErrorAction SilentlyContinue
           }
-          Write-Host "Selftest exit code: $($p.ExitCode)"
-          Write-Host "--- selftest.log ---"; Get-Content selftest.log -ErrorAction SilentlyContinue
-          Write-Host "--- crash.log ---"; Get-Content crash.log -ErrorAction SilentlyContinue
-          if (!(Test-Path selftest.json)) { throw "Selftest marker missing (exit $($p.ExitCode))" }
-          $result = Get-Content selftest.json -Raw | ConvertFrom-Json
-          if (-not $result.ok) { throw "Packaged selftest failed: $($result.error)" }
-          if ($result.sources_enabled -lt 1) { throw "No enabled sources in packaged app" }
-          if ($result.discovered -lt 1) { throw "Discovery returned no proxies" }
-          if ($result.export_files.Count -ne 3) { throw "Expected 3 export files, got $($result.export_files.Count)" }
-          if (-not $result.json_verified) { throw "Exported JSON failed verification" }
-          if (-not $result.csv_verified) { throw "Exported CSV failed verification" }
-          if (-not $result.txt_verified) { throw "Exported TXT failed verification" }
-          if (-not $result.gateway_ok) { throw "Gateway did not reach ONLINE" }
-          if (-not $result.resources_ok) { throw "Packaged sources.json/config.json missing" }
-          if ($p.ExitCode -ne 0) { throw "Selftest exited with $($p.ExitCode)" }
-          Write-Host "Sources: $($result.sources_total)/$($result.sources_enabled) enabled, discovered=$($result.discovered), checked=$($result.checked)"
-          Write-Host "Sections: $($result.sections -join ', ')"
-          Get-Content selftest.json
       - name: Updater replace / version / rollback smoke test
         timeout-minutes: 3
         env:
@@ -122,6 +138,18 @@ jobs:
           if ((Get-Content rollback-check.txt -Raw).Trim() -ne '4.0.0') { throw 'Rollback did not restore the working EXE' }
           Remove-Item Env:PROXYHUNTER_VERSION_FILE
           Write-Host 'Updater replace/version/rollback PASS'
+      - name: Upload selftest diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ProxyHunter-selftest-report
+          if-no-files-found: ignore
+          path: |
+            clean-test/selftest.json
+            clean-test/selftest.log
+            clean-test/crash.log
+            backend-data/server.out
+            backend-data/server.err
       - name: Stop backend
         if: always()
         run: |
