@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
-"""ProxyHunter v3.2.0 Windows desktop application (Tkinter, no browser engine)."""
+"""ProxyHunter v3.3.0 Windows desktop application (Tkinter, modern UI)."""
 
 from __future__ import annotations
 
 import json
 import os
 import queue
-import time
 import sys
 import threading
+import time
 import tkinter as tk
 from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
@@ -18,32 +18,48 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "backend"))
 sys.path.insert(0, str(ROOT / "shared"))
 
-from backend.controller import BackendController, BackendWorker  # noqa: E402
-from shared.exports import default_export_dir, export_history, suggested_name  # noqa: E402
+from backend.controller import BackendController, BackendWorker
+from shared.exports import default_export_dir, export_history, suggested_name, delete_export, export_proxies
+from proxyhunter.models import Proxy
 
+# --------------------------------------------------------------------------- theme
 NAVY = "#0B1220"
-CHARCOAL = "#11161F"
-SURFACE = "#182130"
-EMERALD = "#10B981"
+CHARCOAL = "#111827"
+SURFACE = "#182236"
+SURFACE2 = "#1F2A44"
+ACCENT = "#3B82F6"
+PURPLE = "#8B5CF6"
+GREEN = "#10B981"
+ORANGE = "#F59E0B"
 RED = "#EF4444"
 MUTED = "#94A3B8"
 TEXT = "#E6EDF3"
 
+COUNTRY_FLAGS = {
+    "US": "🇺🇸", "IN": "🇮🇳", "GB": "🇬🇧", "DE": "🇩🇪", "FR": "🇫🇷",
+    "CA": "🇨🇦", "AU": "🇦🇺", "JP": "🇯🇵", "CN": "🇨🇳", "RU": "🇷🇺",
+    "BR": "🇧🇷", "NL": "🇳🇱", "SG": "🇸🇬", "KR": "🇰🇷", "IT": "🇮🇹",
+    "ES": "🇪🇸", "SE": "🇸🇪", "CH": "🇨🇭", "TR": "🇹🇷", "PL": "🇵🇱",
+    "UA": "🇺🇦", "ID": "🇮🇩", "TH": "🇹🇭", "VN": "🇻🇳", "PH": "🇵🇭",
+    "MY": "🇲🇾", "ZA": "🇿🇦", "AE": "🇦🇪", "SA": "🇸🇦", "IL": "🇮🇱",
+    "MX": "🇲🇽", "AR": "🇦🇷", "CL": "🇨🇱", "CO": "🇨🇴", "PE": "🇵🇪",
+    "EG": "🇪🇬", "NG": "🇳🇬", "KE": "🇰🇪", "PK": "🇵🇰", "BD": "🇧🇩",
+}
+
 SECTIONS = [
-    "Dashboard", "Proxy Discovery", "Proxy Checker", "Proxy List",
-    "Rotating Gateway", "Downloads", "Activity Logs", "Settings", "About",
+    "Dashboard", "Proxy List", "Rotating Gateway", "Downloads", "Settings", "About",
 ]
 
 
 class ProxyHunterApp(tk.Tk):
     def __init__(self) -> None:
         super().__init__()
-        self.title("ProxyHunter v3.2.0 — Desktop Edition")
-        self.geometry("1180x760")
-        self.minsize(940, 620)
+        self.title("ProxyHunter v3.3.0")
+        self.geometry("1280x800")
+        self.minsize(1000, 640)
         self.configure(bg=CHARCOAL)
-        self.events: queue.Queue[tuple[str, dict]] = queue.Queue()
-        self.controller = BackendController(on_event=lambda kind, data: self.events.put((kind, data)))
+        self.events: queue.Queue = queue.Queue()
+        self.controller = BackendController(on_event=lambda k, d: self.events.put((k, d)))
         self.worker = BackendWorker(self.controller)
         self.pending: list = []
         if self.controller.config.get("gateway", {}).get("auto_start", True):
@@ -58,7 +74,7 @@ class ProxyHunterApp(tk.Tk):
         if self.controller.config.get("auto_update", True):
             threading.Thread(target=self._auto_update_loop, daemon=True).start()
 
-    # ----------------------------------------------------------------- styling
+    # ---------------------------------------------------------------- styling
     def _styles(self) -> None:
         style = ttk.Style(self)
         try:
@@ -71,34 +87,40 @@ class ProxyHunterApp(tk.Tk):
         style.configure("TLabel", background=CHARCOAL, foreground=TEXT, font=("Segoe UI", 10))
         style.configure("Card.TLabel", background=SURFACE, foreground=TEXT, font=("Segoe UI", 10))
         style.configure("Muted.TLabel", background=CHARCOAL, foreground=MUTED, font=("Segoe UI", 9))
-        style.configure("Title.TLabel", background=CHARCOAL, foreground=TEXT, font=("Segoe UI", 16, "bold"))
-        style.configure("Good.TLabel", background=CHARCOAL, foreground=EMERALD, font=("Segoe UI", 10, "bold"))
+        style.configure("Title.TLabel", background=CHARCOAL, foreground=TEXT, font=("Segoe UI", 18, "bold"))
+        style.configure("Good.TLabel", background=CHARCOAL, foreground=GREEN, font=("Segoe UI", 10, "bold"))
         style.configure("Bad.TLabel", background=CHARCOAL, foreground=RED, font=("Segoe UI", 10, "bold"))
-        style.configure("TButton", background=SURFACE, foreground=TEXT, borderwidth=0, padding=8)
-        style.map("TButton", background=[("active", "#233348")])
+        style.configure("TButton", background=ACCENT, foreground="white", borderwidth=0, padding=10, font=("Segoe UI", 10, "bold"))
+        style.map("TButton", background=[("active", "#2563EB")])
+        style.configure("Secondary.TButton", background=SURFACE2, foreground=TEXT, borderwidth=0, padding=8)
+        style.map("Secondary.TButton", background=[("active", "#2A3A5E")])
         style.configure("TEntry", fieldbackground=SURFACE, foreground=TEXT)
-        style.configure("Treeview", fieldbackground=SURFACE, background=SURFACE, foreground=TEXT,
-                        rowheight=24, font=("Segoe UI", 9))
-        style.configure("Treeview.Heading", background=SURFACE, foreground=TEXT)
-        style.configure("TProgressbar", background=EMERALD, troughcolor=NAVY)
+        style.configure("TCombobox", fieldbackground=SURFACE, foreground=TEXT)
+        style.configure("Treeview", fieldbackground=SURFACE, background=SURFACE, foreground=TEXT, rowheight=26, font=("Segoe UI", 9))
+        style.configure("Treeview.Heading", background=SURFACE2, foreground=TEXT, font=("Segoe UI", 9, "bold"))
+        style.configure("TProgressbar", background=GREEN, troughcolor=NAVY)
+        style.configure("TCheckbutton", background=CHARCOAL, foreground=TEXT)
 
-    # ------------------------------------------------------------------- layout
+    # ---------------------------------------------------------------- layout
     def _layout(self) -> None:
         self.columnconfigure(1, weight=1)
         self.rowconfigure(0, weight=1)
-        side = ttk.Frame(self, style="Side.TFrame", width=190)
+        side = ttk.Frame(self, style="Side.TFrame", width=200)
         side.grid(row=0, column=0, sticky="ns")
         side.grid_propagate(False)
-        ttk.Label(side, text="◈  ProxyHunter", style="Title.TLabel").pack(pady=(20, 16))
-        self.nav = ttk.Treeview(side, show="tree", height=12)
-        self.nav.pack(fill="both", padx=8)
-        for section in SECTIONS:
-            self.nav.insert("", "end", text="  " + section, tags=(section,))
-        self.nav.selection_set(self.nav.get_children()[0])
-        self.nav.bind("<<TreeviewSelect>>", self._on_nav)
-        ttk.Label(side, text="v3.2.0 · local gateway", style="Muted.TLabel").pack(side="bottom", pady=14)
+        ttk.Label(side, text="◈ ProxyHunter", style="Title.TLabel", font=("Segoe UI", 16, "bold")).pack(pady=(22, 4))
+        ttk.Label(side, text="v3.3.0", style="Muted.TLabel").pack(pady=(0, 16))
+        self.nav = tk.Listbox(side, bg=NAVY, fg=TEXT, selectbackground=ACCENT, selectforeground="white",
+                              borderwidth=0, highlightthickness=0, font=("Segoe UI", 11), activestyle="none")
+        self.nav.pack(fill="both", expand=True, padx=10)
+        for s in SECTIONS:
+            self.nav.insert("end", "   " + s)
+        self.nav.selection_set(0)
+        self.nav.bind("<<ListboxSelect>>", self._on_nav)
+        self.status_dot = tk.Label(side, text="● Ready", bg=NAVY, fg=GREEN, font=("Segoe UI", 9, "bold"))
+        self.status_dot.pack(side="bottom", pady=12)
 
-        self.content = ttk.Frame(self, padding=18)
+        self.content = ttk.Frame(self, padding=16)
         self.content.grid(row=0, column=1, sticky="nsew")
         self.content.columnconfigure(0, weight=1)
         self.content.rowconfigure(1, weight=1)
@@ -108,235 +130,281 @@ class ProxyHunterApp(tk.Tk):
         self.body.grid(row=1, column=0, sticky="nsew")
         self.body.columnconfigure(0, weight=1)
         self.body.rowconfigure(0, weight=1)
-        self.frames = {
-            name: self._build_section(name) for name in SECTIONS
-        }
-        for frame in self.frames.values():
-            frame.grid(row=0, column=0, sticky="nsew")
+        self.frames = {name: self._build_section(name) for name in SECTIONS}
+        for f in self.frames.values():
+            f.grid(row=0, column=0, sticky="nsew")
         self._show("Dashboard")
 
-    def _card(self, parent: ttk.Frame, title: str) -> ttk.Frame:
-        card = ttk.Frame(parent, style="Card.TFrame", padding=14)
-        card.pack(fill="x", pady=6)
-        ttk.Label(card, text=title, style="Title.TLabel").pack(anchor="w", pady=(0, 8))
+    def _card(self, parent, title=None, color=SURFACE):
+        card = tk.Frame(parent, bg=color, bd=0, highlightthickness=0)
+        card.pack(fill="x", pady=6, padx=2)
+        if title:
+            tk.Label(card, text=title, bg=color, fg=TEXT, font=("Segoe UI", 12, "bold")).pack(anchor="w", padx=14, pady=(10, 6))
         return card
 
-    def _build_section(self, name: str) -> ttk.Frame:
+    def _build_section(self, name):
         frame = ttk.Frame(self.body)
         if name == "Dashboard":
-            self.stat_labels = {}
-            card = self._card(frame, "Live status")
-            for key in ("status", "backend", "internet", "gateway", "endpoint", "country", "mode", "discovered", "working",
-                        "unique_ips", "healthy", "checked", "speed", "active",
-                        "active_workers", "configured_workers",
-                        "latency", "uptime", "last_refresh", "cpu", "ram"):
-                row = ttk.Frame(card, style="Card.TFrame")
-                row.pack(fill="x")
-                ttk.Label(row, text=key.replace("_", " ").title(), style="Muted.TLabel", width=22).pack(side="left")
-                lbl = ttk.Label(row, text="-", style="Card.TLabel")
-                lbl.pack(side="left")
-                self.stat_labels[key] = lbl
-            ops = self._card(frame, "Controls")
-            bar = ttk.Frame(ops, style="Card.TFrame")
-            bar.pack(fill="x")
-            for text, action in (("Find Proxies", "discover"), ("Check Proxies", "check"),
-                                 ("Refresh", "refresh"), ("Stop", "stop")):
-                ttk.Button(bar, text=text, command=lambda a=action: self._run(a)).pack(side="left", padx=4)
-            self.progress = ttk.Progressbar(ops, mode="determinate", maximum=100)
-            self.progress.pack(fill="x", pady=8)
-        elif name in ("Proxy Discovery", "Proxy Checker"):
-            card = self._card(frame, name)
-            ttk.Label(card, text="Bounded async workers · rate limits always respected",
-                      style="Muted.TLabel").pack(anchor="w")
-            bar = ttk.Frame(card, style="Card.TFrame")
-            bar.pack(fill="x", pady=6)
-            for text, action in (("Find Proxies", "discover"), ("Check", "check"),
-                                 ("Discover + Check", "refresh"), ("Stop", "stop")):
-                ttk.Button(bar, text=text, command=lambda a=action: self._run(a)).pack(side="left", padx=3)
-            self.worker_var = tk.StringVar(value="50")
-            ttk.Label(bar, text="Workers", style="Muted.TLabel").pack(side="left", padx=(12, 4))
-            ttk.Combobox(
-                bar, textvariable=self.worker_var, state="readonly", width=8,
-                values=("10", "50", "100", "200", "500"),
-            ).pack(side="left")
-            self.limit_var = tk.StringVar(value="500")
-            ttk.Entry(bar, textvariable=self.limit_var, width=8).pack(side="left", padx=(12, 4))
-            ttk.Label(bar, text="max checks", style="Muted.TLabel").pack(side="left")
-            self._build_sources(card)
+            self._build_dashboard(frame)
         elif name == "Proxy List":
-            self._build_table(frame)
+            self._build_proxy_list(frame)
         elif name == "Rotating Gateway":
             self._build_gateway(frame)
         elif name == "Downloads":
             self._build_downloads(frame)
-        elif name == "Activity Logs":
-            self.log_text = tk.Text(frame, bg=SURFACE, fg=TEXT, insertbackground=TEXT, height=24)
-            self.log_text.pack(fill="both", expand=True)
         elif name == "Settings":
-            card = self._card(frame, "Settings")
-            ttk.Button(card, text="Toggle dark / light theme", command=self._toggle_theme).pack(anchor="w")
-            self.timeout_var = tk.StringVar(value=str(self.controller.config["timeout_seconds"]))
-            ttk.Entry(card, textvariable=self.timeout_var, width=8).pack(side="left", padx=6)
-            ttk.Label(card, text="Timeout (s)", style="Muted.TLabel").pack(side="left")
-            ttk.Button(card, text="Save", command=self._save_settings).pack(side="left", padx=8)
-            ttk.Label(card, text="Free public proxies are untrusted — never send sensitive data.",
-                      style="Muted.TLabel").pack(anchor="w", pady=10)
-            updates = self._card(frame, "Automatic updates")
-            self.auto_update_var = tk.BooleanVar(value=bool(self.controller.config.get("auto_update", True)))
-            ttk.Checkbutton(updates, text="Enable automatic updates (default on)",
-                            variable=self.auto_update_var,
-                            command=self._save_auto_update).pack(anchor="w")
-            self.update_status = ttk.Label(updates, text=f"Current version: 3.2.0", style="Muted.TLabel")
-            self.update_status.pack(anchor="w", pady=4)
-            ttk.Button(updates, text="Check for Updates", command=self._check_updates_now).pack(anchor="w", pady=4)
-            self.update_progress = ttk.Progressbar(updates, mode="determinate", maximum=100)
-            self.update_progress.pack(fill="x", pady=4)
+            self._build_settings(frame)
         else:
-            card = self._card(frame, "About")
-            for line in (
-                "ProxyHunter v3.2.0 — Desktop & Mobile Edition",
-                "Preserved v2/v3 async backend, six rotation modes, country filters.",
-                "Gateway: http://127.0.0.1:8080 (localhost by default).",
-                "No browser engine bundled. Lightweight Tkinter UI.",
-            ):
-                ttk.Label(card, text=line, style="Card.TLabel").pack(anchor="w")
+            self._build_about(frame)
         return frame
 
-    def _build_sources(self, parent: ttk.Frame) -> None:
-        box = ttk.Frame(parent, style="Card.TFrame")
-        box.pack(fill="both", pady=8)
-        ttk.Label(box, text="Authorized proxy sources", style="Card.TLabel").pack(anchor="w")
-        self.source_tree = ttk.Treeview(box, columns=("name", "type", "enabled"), show="headings", height=6)
-        for col in ("name", "type", "enabled"):
-            self.source_tree.heading(col, text=col.title())
-        self.source_tree.column("name", width=220)
-        self.source_tree.pack(fill="x", side="left")
-        scroll = ttk.Scrollbar(box, orient="vertical", command=self.source_tree.yview)
-        self.source_tree.configure(yscrollcommand=scroll.set)
-        scroll.pack(side="right", fill="y")
-        actions = ttk.Frame(box, style="Card.TFrame")
-        actions.pack(fill="x")
-        ttk.Button(actions, text="Enable", command=lambda: self._run("source_on")).pack(side="left", padx=3)
-        ttk.Button(actions, text="Disable", command=lambda: self._run("source_off")).pack(side="left", padx=3)
-        ttk.Button(actions, text="Test connectivity", command=lambda: self._run("source_test")).pack(side="left", padx=3)
-        self.source_status = ttk.Label(actions, text="", style="Muted.TLabel")
-        self.source_status.pack(side="left", padx=8)
-        self._update_sources()
+    # --------------------------------------------------------------- dashboard
+    def _build_dashboard(self, frame):
+        top = tk.Frame(frame, bg=CHARCOAL)
+        top.pack(fill="x")
+        self.stat_cards = {}
+        stats = [
+            ("Discovered", "discovered", ACCENT), ("Working", "working", GREEN),
+            ("Unique IPs", "unique", PURPLE), ("Checked", "checked", ACCENT),
+            ("Failed", "dead", RED), ("Countries", "countries_count", ORANGE),
+            ("Active Workers", "active_workers", GREEN), ("Avg Latency", "avg_latency", ACCENT),
+        ]
+        for i, (label, key, color) in enumerate(stats):
+            card = tk.Frame(top, bg=SURFACE, bd=0)
+            card.grid(row=i // 4, column=i % 4, padx=6, pady=6, sticky="nsew")
+            top.columnconfigure(i % 4, weight=1)
+            tk.Label(card, text=label, bg=SURFACE, fg=MUTED, font=("Segoe UI", 9, "bold")).pack(anchor="w", padx=14, pady=(10, 2))
+            val = tk.Label(card, text="0", bg=SURFACE, fg=color, font=("Segoe UI", 22, "bold"))
+            val.pack(anchor="w", padx=14, pady=(0, 10))
+            self.stat_cards[key] = val
+        # progress
+        pc = tk.Frame(frame, bg=CHARCOAL)
+        pc.pack(fill="x", pady=8)
+        tk.Label(pc, text="Progress", bg=CHARCOAL, fg=MUTED, font=("Segoe UI", 9, "bold")).pack(anchor="w")
+        self.progress = ttk.Progressbar(pc, mode="determinate", maximum=100)
+        self.progress.pack(fill="x", pady=4)
+        # actions
+        bar = tk.Frame(frame, bg=CHARCOAL)
+        bar.pack(fill="x", pady=8)
+        for text, action, color in (("Find Proxies", "discover", ACCENT), ("Check Proxies", "check", GREEN),
+                                   ("Refresh", "refresh", PURPLE), ("Stop", "stop", RED),
+                                   ("Download Proxies", "download_all", ORANGE)):
+            b = tk.Button(bar, text=text, bg=color, fg="white", bd=0, padx=14, pady=8,
+                          font=("Segoe UI", 10, "bold"), cursor="hand2",
+                          command=lambda a=action: self._run(a))
+            b.pack(side="left", padx=4)
+        self.dash_status = tk.Label(frame, text="Ready", bg=CHARCOAL, fg=MUTED, font=("Segoe UI", 10))
+        self.dash_status.pack(anchor="w", pady=4)
 
-    def _build_table(self, frame: ttk.Frame) -> None:
-        card = ttk.Frame(frame, style="Card.TFrame")
-        card.pack(fill="both", expand=True)
-        columns = ("ip", "port", "protocol", "country", "latency", "status", "checked")
-        self.table = ttk.Treeview(card, columns=columns, show="headings", selectmode="extended")
-        for col, label in zip(columns, ("IP Address", "Port", "Protocol", "Country", "Latency", "Status", "Last Checked")):
-            self.table.heading(col, text=label, command=lambda c=col: self._sort(c))
-            self.table.column(col, width=140 if col == "ip" else 110)
-        scroll = ttk.Scrollbar(card, orient="vertical", command=self.table.yview)
-        self.table.configure(yscrollcommand=scroll.set)
-        self.table.pack(side="left", fill="both", expand=True)
-        scroll.pack(side="right", fill="y")
-        self.table.bind("<Button-3>", self._context_menu)
-        toolbar = ttk.Frame(frame, style="Card.TFrame")
+    # --------------------------------------------------------------- proxy list
+    def _build_proxy_list(self, frame):
+        toolbar = tk.Frame(frame, bg=CHARCOAL)
         toolbar.pack(fill="x", pady=6)
         self.search_var = tk.StringVar()
-        ttk.Entry(toolbar, textvariable=self.search_var, width=30).pack(side="left", padx=4)
-        for text, action in (("Copy", "copy_selected"), ("Export CSV", "export_csv"),
-                             ("Refresh", "refresh_list")):
-            ttk.Button(toolbar, text=text, command=lambda a=action: self._run(a)).pack(side="left", padx=4)
+        tk.Entry(toolbar, textvariable=self.search_var, bg=SURFACE, fg=TEXT, insertbackground=TEXT, width=28,
+                 bd=0).pack(side="left", padx=4, ipady=6)
+        self.country_filter = tk.StringVar(value="All")
+        self.proto_filter = tk.StringVar(value="All")
+        tk.Label(toolbar, text="Country", bg=CHARCOAL, fg=MUTED).pack(side="left", padx=(12, 4))
+        ttk.Combobox(toolbar, textvariable=self.country_filter, values=("All",), width=8, state="readonly").pack(side="left")
+        tk.Label(toolbar, text="Protocol", bg=CHARCOAL, fg=MUTED).pack(side="left", padx=(12, 4))
+        ttk.Combobox(toolbar, textvariable=self.proto_filter, values=("All", "http", "https", "socks4", "socks5"),
+                     width=10, state="readonly").pack(side="left")
+        for text, action in (("Copy", "copy_selected"), ("Download Selected", "export_selected"),
+                             ("Download All", "export_all_working")):
+            tk.Button(toolbar, text=text, bg=SURFACE2, fg=TEXT, bd=0, padx=10, pady=6,
+                      command=lambda a=action: self._run(a)).pack(side="left", padx=4)
+        self.worker_var = tk.StringVar(value="50")
+        tk.Label(toolbar, text="Workers", bg=CHARCOAL, fg=MUTED).pack(side="left", padx=(12, 4))
+        ttk.Combobox(toolbar, textvariable=self.worker_var, values=("10", "50", "100", "200", "500"),
+                     width=6, state="readonly").pack(side="left")
+        self.limit_var = tk.StringVar(value="500")
+        tk.Entry(toolbar, textvariable=self.limit_var, bg=SURFACE, fg=TEXT, width=8, bd=0).pack(side="left", padx=(8, 4), ipady=6)
+        tk.Label(toolbar, text="max", bg=CHARCOAL, fg=MUTED).pack(side="left")
+        for text, action in (("Find", "discover"), ("Check", "check"), ("Discover+Check", "refresh"), ("Stop", "stop")):
+            tk.Button(toolbar, text=text, bg=ACCENT, fg="white", bd=0, padx=10, pady=6,
+                      command=lambda a=action: self._run(a)).pack(side="left", padx=4)
 
-    def _build_gateway(self, frame: ttk.Frame) -> None:
-        card = self._card(frame, "Rotating gateway")
+        card = tk.Frame(frame, bg=SURFACE)
+        card.pack(fill="both", expand=True, pady=6)
+        cols = ("ip", "port", "protocol", "country", "latency", "status", "checked")
+        self.table = ttk.Treeview(card, columns=cols, show="headings", selectmode="extended")
+        for c, label, w in zip(cols, ("IP Address", "Port", "Protocol", "Country", "Latency (ms)", "Health", "Last Checked"), (150, 70, 90, 110, 100, 90, 150)):
+            self.table.heading(c, text=label, command=lambda col=c: self._sort(col))
+            self.table.column(c, width=w, minwidth=60)
+        vsb = ttk.Scrollbar(card, orient="vertical", command=self.table.yview)
+        self.table.configure(yscrollcommand=vsb.set)
+        self.table.pack(side="left", fill="both", expand=True)
+        vsb.pack(side="right", fill="y")
+        self.table.tag_configure("healthy", foreground=GREEN)
+        self.table.tag_configure("slow", foreground=ORANGE)
+        self.table.tag_configure("dead", foreground=RED)
+
+    # --------------------------------------------------------------- gateway
+    def _build_gateway(self, frame):
+        card = self._card(frame, "Rotating Gateway")
         self.gw_labels = {}
-        for key in ("status", "endpoint", "country", "mode", "healthy", "unique_ips",
-                    "active", "success", "failed", "current_ip", "latency"):
-            row = ttk.Frame(card, style="Card.TFrame")
-            row.pack(fill="x")
-            ttk.Label(row, text=key.replace("_", " ").title(), style="Muted.TLabel", width=18).pack(side="left")
-            lbl = ttk.Label(row, text="-", style="Card.TLabel")
+        for key in ("status", "endpoint", "country", "mode", "healthy", "unique_ips", "active", "success", "failed", "current_ip", "latency"):
+            row = tk.Frame(card, bg=SURFACE)
+            row.pack(fill="x", padx=14, pady=2)
+            tk.Label(row, text=key.replace("_", " ").title(), bg=SURFACE, fg=MUTED, width=18, anchor="w").pack(side="left")
+            lbl = tk.Label(row, text="-", bg=SURFACE, fg=TEXT)
             lbl.pack(side="left")
             self.gw_labels[key] = lbl
-        bar = ttk.Frame(card, style="Card.TFrame")
+        bar = tk.Frame(frame, bg=CHARCOAL)
         bar.pack(fill="x", pady=8)
-        for text, action in (("Start", "gateway_start"), ("Stop", "gateway_stop"),
-                             ("Restart", "gateway_restart"), ("Copy endpoint", "copy_endpoint"),
-                             ("Test", "test_connection")):
-            ttk.Button(bar, text=text, command=lambda a=action: self._run(a)).pack(side="left", padx=3)
+        for text, action in (("Start", "gateway_start"), ("Stop", "gateway_stop"), ("Restart", "gateway_restart"),
+                             ("Copy endpoint", "copy_endpoint"), ("Test", "test_connection")):
+            tk.Button(bar, text=text, bg=SURFACE2, fg=TEXT, bd=0, padx=10, pady=6,
+                      command=lambda a=action: self._run(a)).pack(side="left", padx=4)
         self.country_var = tk.StringVar(value="all")
-        ttk.Entry(bar, textvariable=self.country_var, width=12).pack(side="left", padx=6)
-        ttk.Button(bar, text="Apply country", command=lambda: self._run("gateway_countries")).pack(side="left")
+        tk.Entry(bar, textvariable=self.country_var, bg=SURFACE, fg=TEXT, width=12, bd=0).pack(side="left", padx=6, ipady=6)
+        tk.Button(bar, text="Apply country", bg=ACCENT, fg="white", bd=0, padx=10, pady=6,
+                  command=lambda: self._run("gateway_countries")).pack(side="left", padx=4)
         self.mode_var = tk.StringVar(value="per_connection")
-        modes = ttk.Combobox(bar, textvariable=self.mode_var, state="readonly", width=18,
-                             values=list(self.controller.rotation_modes))
-        modes.pack(side="left", padx=6)
-        ttk.Button(bar, text="Set mode", command=lambda: self._run("gateway_mode")).pack(side="left")
+        ttk.Combobox(bar, textvariable=self.mode_var, values=list(self.controller.rotation_modes),
+                     width=18, state="readonly").pack(side="left", padx=6)
+        tk.Button(bar, text="Set mode", bg=ACCENT, fg="white", bd=0, padx=10, pady=6,
+                  command=lambda: self._run("gateway_mode")).pack(side="left", padx=4)
         auth = self._card(frame, "Authentication (PBKDF2)")
         self.user_var = tk.StringVar()
         self.pass_var = tk.StringVar()
-        ttk.Entry(auth, textvariable=self.user_var, width=20).pack(side="left", padx=4)
-        ttk.Entry(auth, textvariable=self.pass_var, width=20, show="*").pack(side="left", padx=4)
-        ttk.Button(auth, text="Save credentials", command=lambda: self._run("gateway_auth")).pack(side="left", padx=4)
+        tk.Entry(auth, textvariable=self.user_var, bg=SURFACE, fg=TEXT, width=20, bd=0).pack(side="left", padx=6, pady=8, ipady=6)
+        tk.Entry(auth, textvariable=self.pass_var, bg=SURFACE, fg=TEXT, width=20, show="*", bd=0).pack(side="left", padx=6, ipady=6)
+        tk.Button(auth, text="Save credentials", bg=ACCENT, fg="white", bd=0, padx=10, pady=6,
+                  command=lambda: self._run("gateway_auth")).pack(side="left", padx=6)
 
-    def _build_downloads(self, frame: ttk.Frame) -> None:
-        card = self._card(frame, "Export validated results")
-        ttk.Label(card, text="Default: %USERPROFILE%\\Downloads\\ProxyHunter\\", style="Muted.TLabel").pack(anchor="w")
-        ttk.Entry(card, textvariable=tk.StringVar(value=str(self.export_dir)), width=60).pack(fill="x", pady=4)
-        bar = ttk.Frame(card, style="Card.TFrame")
-        bar.pack(fill="x")
-        for text, kind in (("All", "all"), ("US", "country:US"), ("IN", "country:IN"),
-                           ("SOCKS5", "protocol:socks5"), ("HTTP", "protocol:http")):
-            ttk.Button(bar, text=text, command=lambda k=kind: self._run("export", k)).pack(side="left", padx=3)
-        ttk.Button(bar, text="Choose folder", command=self._choose_folder).pack(side="left", padx=6)
-        self.history_tree = ttk.Treeview(card, columns=("name", "count", "size", "time"),
-                                         show="headings", height=12)
-        for col in ("name", "count", "size", "time"):
-            self.history_tree.heading(col, text=col.title())
-        self.history_tree.pack(fill="x", pady=8)
+    # --------------------------------------------------------------- downloads
+    def _build_downloads(self, frame):
+        card = self._card(frame, "Export & Download History")
+        top = tk.Frame(card, bg=SURFACE)
+        top.pack(fill="x", padx=14, pady=6)
+        self.export_dir_var = tk.StringVar(value=str(self.export_dir))
+        tk.Entry(top, textvariable=self.export_dir_var, bg=SURFACE2, fg=TEXT, bd=0, width=50).pack(side="left", ipady=6)
+        tk.Button(top, text="Choose folder", bg=SURFACE2, fg=TEXT, bd=0, padx=10, pady=6,
+                  command=self._choose_folder).pack(side="left", padx=6)
+        tk.Button(top, text="Open folder", bg=ACCENT, fg="white", bd=0, padx=10, pady=6,
+                  command=self._open_folder).pack(side="left", padx=6)
+        self.auto_export_var = tk.BooleanVar(value=bool(self.controller.config.get("auto_export", False)))
+        tk.Checkbutton(top, text="Auto-export after check", variable=self.auto_export_var, bg=SURFACE, fg=TEXT,
+                       selectcolor=SURFACE2, command=self._save_auto_export).pack(side="left", padx=10)
+        fmts = tk.Frame(card, bg=SURFACE)
+        fmts.pack(fill="x", padx=14, pady=6)
+        tk.Label(fmts, text="Format:", bg=SURFACE, fg=MUTED).pack(side="left")
+        self.export_format_var = tk.StringVar(value="json")
+        for f in ("json", "txt", "csv"):
+            tk.Radiobutton(fmts, text=f.upper(), variable=self.export_format_var, value=f, bg=SURFACE, fg=TEXT,
+                           selectcolor=SURFACE2).pack(side="left", padx=6)
+        tk.Label(fmts, text="Scope:", bg=SURFACE, fg=MUTED).pack(side="left", padx=(12, 4))
+        self.export_scope_var = tk.StringVar(value="all")
+        ttk.Combobox(fmts, textvariable=self.export_scope_var,
+                     values=("all", "selected", "country", "http", "https", "socks4", "socks5"),
+                     width=12, state="readonly").pack(side="left")
+        tk.Button(fmts, text="Download (Save As)", bg=GREEN, fg="white", bd=0, padx=12, pady=6,
+                  command=lambda: self._run("export_saveas")).pack(side="left", padx=8)
+        tk.Button(fmts, text="Quick export", bg=ACCENT, fg="white", bd=0, padx=12, pady=6,
+                  command=lambda: self._run("export_quick")).pack(side="left", padx=4)
 
-    # ------------------------------------------------------------------ actions
-    def _bind_keys(self) -> None:
+        self.history_tree = ttk.Treeview(card, columns=("name", "format", "count", "size", "time"), show="headings", height=14)
+        for col, label, w in zip(("name", "format", "count", "size", "time"),
+                                 ("File", "Format", "Count", "Size", "Date"), (260, 80, 70, 90, 170)):
+            self.history_tree.heading(col, text=label)
+            self.history_tree.column(col, width=w, minwidth=60)
+        self.history_tree.pack(fill="both", expand=True, padx=14, pady=6)
+        hb = tk.Frame(card, bg=SURFACE)
+        hb.pack(fill="x", padx=14, pady=6)
+        for text, action in (("Open file", "open_export"), ("Open folder", "open_export_folder"),
+                             ("Delete entry", "delete_export")):
+            tk.Button(hb, text=text, bg=SURFACE2, fg=TEXT, bd=0, padx=10, pady=6,
+                      command=lambda a=action: self._run(a)).pack(side="left", padx=4)
+        self._update_history()
+
+    # --------------------------------------------------------------- settings
+    def _build_settings(self, frame):
+        card = self._card(frame, "Settings")
+        self.timeout_var = tk.StringVar(value=str(self.controller.config["timeout_seconds"]))
+        tk.Label(card, text="Timeout (s)", bg=SURFACE, fg=MUTED).pack(anchor="w", padx=14)
+        tk.Entry(card, textvariable=self.timeout_var, bg=SURFACE2, fg=TEXT, width=8, bd=0).pack(anchor="w", padx=14, pady=4, ipady=6)
+        tk.Button(card, text="Save", bg=ACCENT, fg="white", bd=0, padx=10, pady=6,
+                  command=self._save_settings).pack(anchor="w", padx=14, pady=6)
+        self.auto_update_var = tk.BooleanVar(value=bool(self.controller.config.get("auto_update", True)))
+        tk.Checkbutton(card, text="Enable automatic updates", variable=self.auto_update_var, bg=SURFACE, fg=TEXT,
+                       selectcolor=SURFACE2, command=self._save_auto_update).pack(anchor="w", padx=14, pady=4)
+        self.update_status = tk.Label(card, text=f"Current version: 3.3.0", bg=SURFACE, fg=MUTED)
+        self.update_status.pack(anchor="w", padx=14, pady=4)
+        tk.Button(card, text="Check for Updates", bg=ACCENT, fg="white", bd=0, padx=10, pady=6,
+                  command=self._check_updates_now).pack(anchor="w", padx=14, pady=4)
+        self.update_progress = ttk.Progressbar(card, mode="determinate", maximum=100)
+        self.update_progress.pack(fill="x", padx=14, pady=4)
+        # advanced diagnostics
+        diag = self._card(frame, "Advanced Diagnostics")
+        self.diag_text = tk.Text(diag, bg=SURFACE2, fg=TEXT, height=12, bd=0)
+        self.diag_text.pack(fill="both", expand=True, padx=14, pady=8)
+        tk.Button(diag, text="Refresh diagnostics", bg=SURFACE2, fg=TEXT, bd=0, padx=10, pady=6,
+                  command=self._refresh_diag).pack(anchor="w", padx=14, pady=6)
+        tk.Label(frame, text="Free public proxies are untrusted — never send sensitive data.",
+                 bg=CHARCOAL, fg=MUTED, font=("Segoe UI", 9)).pack(anchor="w", pady=10)
+
+    def _build_about(self, frame):
+        card = self._card(frame, "About")
+        for line in (
+            "ProxyHunter v3.3.0 — Windows Desktop Edition",
+            "Modern UI, fixed exports (JSON default), automatic updates.",
+            "Gateway: http://127.0.0.1:8080 (localhost by default).",
+            "No browser engine bundled. Lightweight Tkinter UI.",
+        ):
+            tk.Label(card, text=line, bg=SURFACE, fg=TEXT).pack(anchor="w", padx=14, pady=2)
+
+    # ---------------------------------------------------------------- actions
+    def _bind_keys(self):
         self.bind("<Control-c>", lambda e: self._run("copy_selected"))
-        self.bind("<Control-e>", lambda e: self._run("export", "all"))
 
-    def _on_nav(self, _event=None) -> None:
-        selected = self.nav.selection()
-        if not selected:
+    def _on_nav(self, _event=None):
+        sel = self.nav.curselection()
+        if not sel:
             return
-        name = self.nav.item(selected[0], "text").strip()
+        name = self.nav.get(sel[0]).strip()
         if name in self.frames:
             self._show(name)
 
-    def _show(self, name: str) -> None:
+    def _show(self, name):
         self.header.config(text=name)
         for key, frame in self.frames.items():
             frame.tkraise() if key == name else None
 
-    def _run(self, action: str, value: str = "") -> None:
+    def _run(self, action, value=""):
         c = self.controller
         if action == "discover":
             if hasattr(self, "worker_var"):
                 c.config["workers"]["count"] = max(1, min(500, int(self.worker_var.get() or 50)))
             coro = c.discover()
-        elif action in ("source_on", "source_off"):
-            selected = self.source_tree.selection() if hasattr(self, "source_tree") else ()
-            name = self.source_tree.item(selected[0], "values")[0] if selected else ""
-            if name:
-                c.set_source(name, action == "source_on")
-                self._update_sources()
-            return
-        elif action == "source_test":
-            selected = self.source_tree.selection() if hasattr(self, "source_tree") else ()
-            name = self.source_tree.item(selected[0], "values")[0] if selected else ""
-            if name:
-                self.source_test_future = self.worker.submit(c.test_source(name))
-                if hasattr(self, "source_status"):
-                    self.source_status.config(text=f"Testing {name}...")
-            return
         elif action == "check":
             coro = c.check(limit=int(self.limit_var.get() or 0)) if hasattr(self, "limit_var") else c.check()
         elif action == "refresh":
             coro = c.discover_and_check(limit=int(self.limit_var.get() or 500))
         elif action == "stop":
             c.request_stop()
+            return
+        elif action == "download_all":
+            self._export_saveas(scope="all")
+            return
+        elif action == "export_all_working":
+            self._export_saveas(scope="all")
+            return
+        elif action == "export_selected":
+            self._export_saveas(scope="selected")
+            return
+        elif action == "export_saveas":
+            self._export_saveas(scope=self.export_scope_var.get())
+            return
+        elif action == "export_quick":
+            self._export_quick(self.export_scope_var.get())
+            return
+        elif action == "copy_selected":
+            if hasattr(self, "table"):
+                lines = [self.table.item(i, "values")[0] for i in self.table.selection()]
+                self.clipboard_clear()
+                self.clipboard_append("\n".join(lines))
             return
         elif action == "gateway_start":
             coro = c.gateway_start()
@@ -361,52 +429,136 @@ class ProxyHunterApp(tk.Tk):
         elif action == "test_connection":
             messagebox.showinfo("ProxyHunter", "Run an authorized IP-check endpoint through the gateway to verify.")
             return
-        elif action == "copy_selected":
-            selected = self.table.selection() if hasattr(self, "table") else ()
-            lines = [self.table.item(i, "values")[0] for i in selected]
-            self.clipboard_clear()
-            self.clipboard_append("\n".join(lines))
+        elif action == "open_export":
+            self._open_selected_export()
             return
-        elif action == "refresh_list":
-            self._update_table()
+        elif action == "open_export_folder":
+            self._open_folder()
             return
-        elif action == "export":
-            if ":" in value:
-                kind, val = value.split(":", 1)
-            else:
-                kind, val = value, ""
-            name = suggested_name(kind, val)
-            proxies = None
-            if kind == "country":
-                proxies = [p for p in c.proxies() if p.get("country_code") == val]
-            elif kind == "protocol":
-                proxies = [p for p in c.proxies() if p.get("protocol") == val]
-            files = c.export(str(self.export_dir), name,
-                             formats=("txt", "csv", "json") if kind == "all" else ("txt",),
-                             proxies=proxies)
-            messagebox.showinfo("Export complete", f"{len(files)} file(s) in {self.export_dir}")
-            self._update_history()
+        elif action == "delete_export":
+            self._delete_selected_export()
             return
         else:
             return
         self.pending.append(self.worker.submit(coro))
 
-    def _choose_folder(self) -> None:
+    # --------------------------------------------------------------- export logic
+    def _selected_proxies(self):
+        if not hasattr(self, "table"):
+            return []
+        selected = self.table.selection()
+        ips = {self.table.item(i, "values")[0] for i in selected}
+        return [p for p in self.controller.proxies() if p.get("host") in ips]
+
+    def _scope_proxies(self, scope):
+        c = self.controller
+        allp = c.proxies()
+        if scope == "all":
+            return allp
+        if scope == "selected":
+            return self._selected_proxies() or allp
+        if scope == "country":
+            # use country filter combobox if present
+            return allp
+        if scope in ("http", "https", "socks4", "socks5"):
+            return [p for p in allp if p.get("protocol") == scope]
+        return allp
+
+    def _export_saveas(self, scope="all"):
+        proxies = self._scope_proxies(scope)
+        if not proxies:
+            messagebox.showwarning("Export", "No proxies to export.")
+            return
+        fmt = self.export_format_var.get()
+        default_name = suggested_name("all" if scope == "all" else scope, "")
+        path = filedialog.asksaveasfilename(
+            defaultextension=f".{fmt}",
+            filetypes=[(f"{fmt.upper()} files", f"*.{fmt}"), ("All files", "*.*")],
+            initialfile=f"{default_name}.{fmt}",
+            initialdir=str(self.export_dir),
+            title="Save exported proxies",
+        )
+        if not path:
+            return
+        try:
+            items = [Proxy.from_dict(d) for d in proxies]
+            created = export_proxies(items, Path(path).parent, Path(path).stem, formats=(fmt,), address_format="ip_port")
+            # rename to exact chosen filename if needed
+            created_path = Path(created[0]["path"])
+            chosen = Path(path)
+            if created_path != chosen:
+                if chosen.exists():
+                    chosen.unlink()
+                created_path.replace(chosen)
+            count = len(items)
+            messagebox.showinfo("Download complete", f"Saved {count} proxies to:\n{chosen}")
+            self._update_history()
+            if hasattr(self, "diag_text"):
+                self.diag_text.insert("end", f"Exported {count} to {chosen}\n")
+        except Exception as exc:  # noqa: BLE001
+            messagebox.showerror("Export failed", str(exc))
+
+    def _export_quick(self, scope):
+        proxies = self._scope_proxies(scope)
+        if not proxies:
+            messagebox.showwarning("Export", "No proxies to export.")
+            return
+        fmt = self.export_format_var.get()
+        name = suggested_name("all" if scope == "all" else scope, "")
+        try:
+            items = [Proxy.from_dict(d) for d in proxies]
+            created = export_proxies(items, self.export_dir, name, formats=(fmt,))
+            messagebox.showinfo("Download complete", f"{len(created)} file(s) in {self.export_dir}")
+            self._update_history()
+        except Exception as exc:  # noqa: BLE001
+            messagebox.showerror("Export failed", str(exc))
+
+    def _open_folder(self):
+        try:
+            os.startfile(str(self.export_dir))
+        except Exception as exc:  # noqa: BLE001
+            messagebox.showerror("Open folder", str(exc))
+
+    def _open_selected_export(self):
+        sel = self.history_tree.selection() if hasattr(self, "history_tree") else ()
+        if not sel:
+            return
+        vals = self.history_tree.item(sel[0], "values")
+        name = vals[0]
+        path = Path(self.export_dir) / name
+        try:
+            os.startfile(str(path))
+        except Exception as exc:  # noqa: BLE001
+            messagebox.showerror("Open file", str(exc))
+
+    def _delete_selected_export(self):
+        sel = self.history_tree.selection() if hasattr(self, "history_tree") else ()
+        if not sel:
+            return
+        vals = self.history_tree.item(sel[0], "values")
+        entry = {"path": str(Path(self.export_dir) / vals[0]), "name": vals[0]}
+        if delete_export(entry):
+            self._update_history()
+
+    def _choose_folder(self):
         folder = filedialog.askdirectory(initialdir=str(self.export_dir))
         if folder:
             self.export_dir = Path(folder)
+            self.export_dir_var.set(str(self.export_dir))
             self._update_history()
 
-    def _toggle_theme(self) -> None:
-        self.dark = not self.dark
-        bg = CHARCOAL if self.dark else "#F4F7FA"
-        fg = TEXT if self.dark else "#0B1220"
-        self.configure(bg=bg)
-        self._styles()
-        self.log_text.config(bg=SURFACE if self.dark else "white",
-                             fg=fg, insertbackground=fg)
+    def _update_history(self):
+        if not hasattr(self, "history_tree"):
+            return
+        for row in list(self.history_tree.get_children("")):
+            self.history_tree.delete(row)
+        for item in export_history(self.export_dir, 50):
+            self.history_tree.insert("", "end", values=(
+                item.get("name", ""), item.get("format", ""),
+                item.get("count", 0), item.get("size_bytes", 0), item.get("timestamp", ""),
+            ))
 
-    def _save_settings(self) -> None:
+    def _save_settings(self):
         try:
             self.controller.config["timeout_seconds"] = max(1.0, float(self.timeout_var.get()))
             from proxyhunter.config import save_config
@@ -415,7 +567,7 @@ class ProxyHunterApp(tk.Tk):
         except ValueError:
             messagebox.showerror("ProxyHunter", "Enter a numeric timeout.")
 
-    def _save_auto_update(self) -> None:
+    def _save_auto_update(self):
         self.controller.config["auto_update"] = bool(self.auto_update_var.get())
         try:
             from proxyhunter.config import save_config
@@ -423,20 +575,29 @@ class ProxyHunterApp(tk.Tk):
         except Exception:  # noqa: BLE001
             pass
 
-    def _auto_update_loop(self) -> None:
-        time.sleep(30)
-        while True:
-            try:
-                self._check_updates_now()
-            except Exception:  # noqa: BLE001
-                pass
-            time.sleep(6 * 3600)
+    def _save_auto_export(self):
+        self.controller.config["auto_export"] = bool(self.auto_export_var.get())
+        try:
+            from proxyhunter.config import save_config
+            save_config(self.controller.config)
+        except Exception:  # noqa: BLE001
+            pass
 
-    def _check_updates_now(self) -> None:
+    def _refresh_diag(self):
+        if not hasattr(self, "diag_text"):
+            return
+        s = self.controller.stats()
+        self.diag_text.delete("1.0", "end")
+        for k in ("backend", "gateway", "internet", "endpoint", "operation", "progress",
+                  "discovered", "checked", "working", "dead", "active_workers",
+                  "configured_workers", "avg_latency", "cpu", "ram", "sources_enabled"):
+            self.diag_text.insert("end", f"{k}: {s.get(k)}\n")
+
+    def _check_updates_now(self):
         self.update_status.config(text="Checking for updates...")
         threading.Thread(target=self._update_worker, daemon=True).start()
 
-    def _update_worker(self) -> None:
+    def _update_worker(self):
         try:
             from proxyhunter.updater import check_for_update, download_update
             info = check_for_update()
@@ -446,129 +607,129 @@ class ProxyHunterApp(tk.Tk):
             if not info.get("available"):
                 self.after(0, lambda: self.update_status.config(text=f"Up to date (latest {info.get('version')})"))
                 return
-            self.after(0, lambda: self.update_status.config(
-                text=f"Update available: {info['version']} — downloading..."))
+            self.after(0, lambda: self.update_status.config(text=f"Update available: {info['version']} — downloading..."))
             dest = Path(os.environ.get("TEMP", ".")) / f"ProxyHunter_v{info['version']}_Windows.exe"
             def progress(done, total):
                 if total:
                     self.after(0, lambda d=done, t=total: self.update_progress.config(value=d / t * 100))
             download_update(info["url"], info.get("sha256", ""), dest, progress=progress)
-            self.after(0, lambda: self.update_status.config(
-                text=f"Downloaded {info['version']}; installing on exit..."))
+            self.after(0, lambda: self.update_status.config(text=f"Downloaded {info['version']}; installing on exit..."))
             from proxyhunter.updater import schedule_install
             schedule_install(Path(sys.executable), dest)
         except Exception as exc:  # noqa: BLE001
             self.after(0, lambda: self.update_status.config(text=f"Update error: {exc}"))
 
-    def _sort(self, column: str) -> None:
-        items = list(self.table.get_children(""))
-        index = ("ip", "port", "protocol", "country", "latency", "status", "checked").index(column)
-        items.sort(key=lambda i: str(self.table.item(i, "values")[index]))
-        for position, item in enumerate(items):
-            self.table.move(item, "", position)
+    def _auto_update_loop(self):
+        time.sleep(30)
+        while True:
+            try:
+                self._check_updates_now()
+            except Exception:  # noqa: BLE001
+                pass
+            time.sleep(6 * 3600)
 
-    def _context_menu(self, event) -> None:
-        menu = tk.Menu(self, tearoff=0)
-        menu.add_command(label="Copy IP:PORT", command=lambda: self._run("copy_selected"))
-        menu.add_command(label="Export selected CSV", command=lambda: self._run("export", "selected"))
-        menu.post(event.x_root, event.y_root)
-
-    # -------------------------------------------------------------------- poll
-    def _poll(self) -> None:
+    # ---------------------------------------------------------------- poll
+    def _poll(self):
         while True:
             try:
                 kind, data = self.events.get_nowait()
             except queue.Empty:
                 break
             if kind == "log":
-                self.log_text.insert("end", data.get("message", "") + "\n")
-                self.log_text.see("end")
-        future = getattr(self, "source_test_future", None)
-        if future is not None and future.done():
-            try:
-                result = future.result()
-                if hasattr(self, "source_status"):
-                    text = f"{result.get('name')}: {'OK' if result.get('ok') else 'FAIL'}"
-                    if result.get("latency_ms") is not None:
-                        text += f" ({result['latency_ms']} ms)"
-                    if result.get("error"):
-                        text += f" — {result['error']}"
-                    self.source_status.config(text=text)
-            except Exception as exc:  # noqa: BLE001
-                if hasattr(self, "source_status"):
-                    self.source_status.config(text=f"source test error: {exc}")
-            self.source_test_future = None
+                pass
         self.pending = [f for f in self.pending if not f.done()]
-        source_future = getattr(self, "source_test_future", None)
-        if source_future is not None and source_future.done():
-            try:
-                results = source_future.result()
-                ok = sum(1 for item in results if item.get("reachable"))
-                self.source_status.config(text=f"{ok}/{len(results)} sources reachable")
-            except Exception as exc:  # noqa: BLE001
-                self.source_status.config(text=f"test failed: {exc}"[:80])
-            self.source_test_future = None
+        # source test future handling (kept simple)
         self._update_stats()
         self._update_table()
         self._update_history()
         self.after(250, self._poll)
 
-    def _update_stats(self) -> None:
+    def _update_stats(self):
         try:
             s = self.controller.stats()
         except Exception:  # noqa: BLE001
             return
-        self.header.config(
-            text=f"Backend {s.get('backend', '-')} · Gateway {s.get('gateway', '-')} · Internet {s.get('internet', '-')}"
-        )
-        for key, label in getattr(self, "stat_labels", {}).items():
-            value = s.get(key)
-            label.config(text="n/a" if value is None else str(value))
+        for key, label in getattr(self, "stat_cards", {}).items():
+            if key == "countries_count":
+                val = s.get("countries")
+                if isinstance(val, dict):
+                    val = len(val)
+                elif val is None:
+                    val = 0
+            elif key == "avg_latency":
+                val = round(s.get("avg_latency", 0), 1)
+            else:
+                val = s.get(key, 0)
+            label.config(text="n/a" if val is None else str(val))
         if hasattr(self, "progress"):
             self.progress["value"] = float(s.get("progress", 0)) * 100
+        # auto-export
+        if (self.controller.config.get("auto_export") and s.get("operation") == "idle"
+                and s.get("checked", 0) > 0 and not getattr(self, "_auto_exported", False)):
+            self._auto_exported = True
+            try:
+                self._export_quick("all")
+            except Exception:  # noqa: BLE001
+                pass
+        if s.get("operation") != "idle":
+            self._auto_exported = False
+        # gateway labels
         for key, label in getattr(self, "gw_labels", {}).items():
             label.config(text=str(s.get(key, "-")))
-            label.config(style="Good.TLabel" if key in ("success", "healthy", "status") else "Card.TLabel")
+        # status dot
+        if hasattr(self, "status_dot"):
+            gw = s.get("gateway", "-")
+            self.status_dot.config(text=f"● {gw}", fg=GREEN if gw == "ONLINE" else RED)
 
-    def _update_table(self) -> None:
+    def _update_table(self):
         if not hasattr(self, "table"):
             return
         query = self.search_var.get().lower() if hasattr(self, "search_var") else ""
+        cf = self.country_filter.get() if hasattr(self, "country_filter") else "All"
+        pf = self.proto_filter.get() if hasattr(self, "proto_filter") else "All"
         current = set(self.table.get_children(""))
         for row in list(current):
             self.table.delete(row)
         for p in self.controller.proxies():
             if query and query not in str(p).lower():
                 continue
+            if cf not in ("All", "") and p.get("country_code") != cf:
+                continue
+            if pf not in ("All", "") and p.get("protocol") != pf:
+                continue
+            latency = p.get("response_time_ms", 0) or 0
+            if p.get("working"):
+                tag = "slow" if latency and latency > 2000 else "healthy"
+                status = "HEALTHY"
+            else:
+                tag = "dead"
+                status = "DEAD"
+            flag = COUNTRY_FLAGS.get(str(p.get("country_code", "")).upper(), "🌐")
             self.table.insert("", "end", values=(
-                p["host"], p["port"], p["protocol"], p.get("country_code", ""),
-                round(p.get("response_time_ms", 0)), "HEALTHY" if p.get("working") else "DEAD",
-                p.get("last_checked", ""),
-            ))
+                p["host"], p["port"], p["protocol"],
+                f"{flag} {p.get('country_code', '')}", round(latency),
+                status, p.get("last_checked", ""),
+            ), tags=(tag,))
 
-    def _update_sources(self) -> None:
-        if not hasattr(self, "source_tree"):
+    def _sort(self, column):
+        if not hasattr(self, "table"):
             return
-        for row in list(self.source_tree.get_children("")):
-            self.source_tree.delete(row)
-        for source in self.controller.sources():
-            self.source_tree.insert("", "end", values=(
-                source.get("name", ""), source.get("type", ""),
-                "yes" if source.get("enabled", True) else "no",
-            ))
+        items = list(self.table.get_children(""))
+        idx = ("ip", "port", "protocol", "country", "latency", "status", "checked").index(column)
+        items.sort(key=lambda i: str(self.table.item(i, "values")[idx]))
+        for pos, item in enumerate(items):
+            self.table.move(item, "", pos)
 
-    def _update_history(self) -> None:
-        if not hasattr(self, "history_tree"):
-            return
-        for row in list(self.history_tree.get_children("")):
-            self.history_tree.delete(row)
-        for item in export_history(self.export_dir, 40):
-            self.history_tree.insert("", "end", values=(
-                item.get("name", ""), item.get("count", 0),
-                item.get("size_bytes", 0), item.get("timestamp", ""),
-            ))
+    def _context_menu(self, event):
+        pass
 
-    def on_close(self) -> None:
+    def _open_folder(self):
+        try:
+            os.startfile(str(self.export_dir))
+        except Exception as exc:  # noqa: BLE001
+            messagebox.showerror("Open folder", str(exc))
+
+    def on_close(self):
         try:
             for future in self.pending:
                 future.cancel()
@@ -577,32 +738,39 @@ class ProxyHunterApp(tk.Tk):
         finally:
             self.destroy()
 
+    # ---------------------------------------------------------------- selftest
+    def selftest(self=None):
+        pass
 
-def selftest() -> None:
-    """CI smoke test: build every UI section and exercise backend startup."""
+
+def selftest():
     import time
     app = ProxyHunterApp()
     try:
         app.withdraw()
         app.update_idletasks()
-        time.sleep(1.0)  # let the background backend/gateway thread initialise
+        time.sleep(1.0)
         app.update_idletasks()
-        for section in SECTIONS:  # navigate every sidebar section
+        for section in SECTIONS:
             app._show(section)
             app.update_idletasks()
         stats = app.controller.stats()
         sources = app.controller.sources()
         enabled = sum(1 for item in sources if item.get("enabled", True))
-        # Real discovery against configured authorized sources (bounded).
         discovered = app.worker.submit(app.controller.discover()).result(timeout=240)
         checked = app.worker.submit(app.controller.check(discovered[:10])).result(timeout=240)
         files = app.controller.export(str(app.export_dir), "working_proxies", formats=("txt", "csv", "json"))
+        # verify JSON content
+        import json as _json
+        jf = [f for f in files if f["format"] == "json"][0]
+        jdata = _json.loads(Path(jf["path"]).read_text())
+        json_ok = jdata.get("total") == len(checked) and "proxies" in jdata
         gw_ok = app.worker.submit(app.controller.gateway_start()).result(timeout=30)
         payload = {
-            "ok": bool(sources and enabled and len(discovered) > 0 and len(checked) > 0 and len(files) == 3 and gw_ok),
-            "version": "3.2.0",
+            "ok": bool(sources and enabled and len(discovered) > 0 and len(checked) > 0
+                       and len(files) == 3 and json_ok and gw_ok),
+            "version": "3.3.0",
             "sections": list(SECTIONS),
-            "endpoint": stats.get("endpoint"),
             "status": stats.get("status"),
             "backend": stats.get("backend"),
             "gateway": stats.get("gateway"),
@@ -611,36 +779,35 @@ def selftest() -> None:
             "sources_enabled": enabled,
             "discovered": len(discovered),
             "checked": len(checked),
-            "gateway_ok": gw_ok,
             "export_files": [item["name"] for item in files],
-            "config_path": str(__import__("proxyhunter.config", fromlist=["base_dir"]).base_dir()),
+            "json_verified": json_ok,
+            "gateway_ok": gw_ok,
         }
     except Exception as exc:  # noqa: BLE001
-        payload = {"ok": False, "version": "3.2.0", "error": f"{type(exc).__name__}: {exc}"}
+        payload = {"ok": False, "version": "3.3.0", "error": f"{type(exc).__name__}: {exc}"}
     finally:
         try:
             app.on_close()
         except Exception:  # noqa: BLE001
             pass
         Path("selftest.json").write_text(json.dumps(payload, indent=2), encoding="utf-8")
-    print("ProxyHunter v3.2.0 selftest", "OK" if payload.get("ok") else payload.get("error"))
+    print("ProxyHunter v3.3.0 selftest", "OK" if payload.get("ok") else payload.get("error"))
 
 
-def main() -> None:
+def main():
     if "--selftest" in sys.argv:
         selftest()
         return
     app = ProxyHunterApp()
     if "--startup" in sys.argv:
-        # Launched by the optional Windows startup task: begin in tray.
         app.after(300, app.iconify)
     try:
-        import pystray  # optional system tray support
+        import pystray
         from PIL import Image, ImageDraw
         image = Image.new("RGBA", (64, 64), (11, 18, 32, 255))
         draw = ImageDraw.Draw(image)
         draw.ellipse((14, 14, 50, 50), outline=(16, 185, 129, 255), width=5)
-        icon = pystray.Icon("ProxyHunter", image, "ProxyHunter v3.0")
+        icon = pystray.Icon("ProxyHunter", image, "ProxyHunter v3.3.0")
         threading.Thread(target=icon.run, daemon=True).start()
     except ImportError:
         pass
@@ -648,4 +815,5 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
+PY

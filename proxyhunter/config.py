@@ -55,7 +55,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "remove_expired_hours": 24,
     },
     "log_level": "INFO",
-    "user_agent": "Mozilla/5.0 (compatible; ProxyHunter/3.2.0; +https://github.com)",
+    "user_agent": "Mozilla/5.0 (compatible; ProxyHunter/3.3.0; +https://github.com)",
     "github_token": "",  # optional, raises GitHub API rate limits
     "auto_update": True,  # check GitHub Releases for a newer Windows build
     "gateway": {
