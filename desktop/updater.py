@@ -20,6 +20,17 @@ import time
 from pathlib import Path
 
 
+def _log(message: str) -> None:
+    try:
+        target = Path(sys.executable if getattr(sys, "frozen", False) else __file__)
+        with open(target.parent / "updater.log", "a", encoding="utf-8") as handle:
+            handle.write(f"{time.strftime('%Y-%m-%dT%H:%M:%S')} {message}\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+    except OSError:
+        pass
+
+
 def _alive(pid: int) -> bool:
     # os.kill(pid, 0) is not reliable on Windows/Wine (WinError 6 / SystemError).
     # Prefer a ctypes OpenProcess check, and otherwise assume the process is gone.
@@ -36,6 +47,17 @@ def _alive(pid: int) -> bool:
         return False
 
 
+def _looks_like_executable(path: Path) -> bool:
+    """Reject truncated/corrupt downloads before touching the installed EXE."""
+    try:
+        if path.stat().st_size < 4096:
+            return False
+        with open(path, "rb") as handle:
+            return handle.read(2) == b"MZ"
+    except OSError:
+        return False
+
+
 def _reported_version(exe: Path) -> str:
     """Run ``exe --version`` and return the version it writes, or an empty string."""
     handle, path = tempfile.mkstemp(prefix="proxyhunter-version-", suffix=".txt")
@@ -48,10 +70,12 @@ def _reported_version(exe: Path) -> str:
             [str(exe), "--version"], env=env, timeout=25,
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
         )
+        _log(f"version probe exit={completed.returncode}")
         if completed.returncode != 0:
             return ""
         return version_file.read_text(encoding="utf-8").strip()
-    except Exception:  # noqa: BLE001
+    except Exception as exc:  # noqa: BLE001
+        _log(f"version probe failed: {type(exc).__name__}: {exc}")
         return ""
     finally:
         try:
@@ -64,8 +88,9 @@ def _rollback(current: Path, backup: Path) -> int:
     try:
         if backup.is_file():
             shutil.copy2(backup, current)
-    except OSError:
-        pass
+            _log("rollback restored the previous executable")
+    except OSError as exc:
+        _log(f"rollback failed: {exc}")
     return 1
 
 
@@ -77,6 +102,7 @@ def main() -> int:
     new = Path(sys.argv[2])
     pid = int(sys.argv[3]) if len(sys.argv) > 3 and sys.argv[3].isdigit() else None
     expected_version = sys.argv[4].strip() if len(sys.argv) > 4 else ""
+    _log(f"start current={current} new={new} pid={pid} expected={expected_version!r}")
 
     # Give the main process time to release its file handles (Wine-safe).
     time.sleep(2)
@@ -85,39 +111,46 @@ def main() -> int:
         while _alive(pid) and time.monotonic() < deadline:
             time.sleep(0.5)
 
+    if not _looks_like_executable(new):
+        _log("replacement is not a valid Windows executable; refusing to install")
+        return 1
+
     backup = current.with_suffix(current.suffix + ".bak")
     try:
         if current.is_file():
             shutil.copy2(current, backup)
         shutil.copy2(new, current)
+        _log("replacement copied")
     except OSError as exc:
-        print(f"copy failed: {exc}")
+        _log(f"copy failed: {exc}")
         return _rollback(current, backup)
 
     # Verify the new binary before launching the full GUI.  This catches a
-    # truncated/corrupt download even when the file size and hash were valid.
+    # valid-but-broken update even when the file size and hash were correct.
     if expected_version:
         reported = _reported_version(current)
+        _log(f"reported version={reported!r}")
         if reported != expected_version:
-            print(f"version verification failed: expected {expected_version!r}, got {reported!r}")
+            _log(f"version verification failed: expected {expected_version!r}, got {reported!r}")
             return _rollback(current, backup)
 
     # Launch the updated application and verify it stays alive briefly.
     try:
         proc = subprocess.Popen([str(current)], close_fds=True)
     except OSError as exc:
-        print(f"launch failed: {exc}")
+        _log(f"launch failed: {exc}")
         return _rollback(current, backup)
 
     time.sleep(8)
     if proc.poll() is not None:
-        # Failed to stay running -> rollback.
+        _log(f"updated application exited early with {proc.returncode}")
         return _rollback(current, backup)
 
     try:
         backup.unlink(missing_ok=True)
     except OSError:
         pass
+    _log("update installed successfully")
     return 0
 
 

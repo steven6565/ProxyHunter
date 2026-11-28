@@ -126,12 +126,19 @@ jobs:
           if (-not $v.WaitForExit(30000)) { try { $v.Kill() } catch { }; throw 'Version check timed out' }
           if ((Get-Content version-check.txt -Raw).Trim() -ne '4.0.0') { throw 'Updated EXE reported the wrong version' }
           Remove-Item Env:PROXYHUNTER_VERSION_FILE
-          # Rollback: a corrupt replacement must be rejected and the backup restored.
-          Set-Content -Path ProxyHunter_bad.exe -Value 'not-a-real-executable' -Encoding ascii
-          $r = Start-Process -FilePath .\ProxyHunterUpdater.exe -ArgumentList '.\ProxyHunter.exe','.\ProxyHunter_bad.exe','0','4.0.0' -PassThru
+          # Corrupt/truncated download: must be rejected before touching the EXE.
+          Set-Content -Path ProxyHunter_corrupt.exe -Value 'not-a-real-executable' -Encoding ascii
+          $c = Start-Process -FilePath .\ProxyHunterUpdater.exe -ArgumentList '.\ProxyHunter.exe','.\ProxyHunter_corrupt.exe','0','4.0.0' -PassThru
+          if (-not $c.WaitForExit(30000)) { try { $c.Kill() } catch { }; throw 'Corrupt-file pre-check timed out' }
+          Write-Host "Corrupt pre-check exit code: $($c.ExitCode)"
+          if ($c.ExitCode -eq 0) { throw 'Corrupt update was not rejected' }
+          # Real rollback: a valid EXE that does not report the expected version
+          # must be replaced back with the working binary.
+          Copy-Item .\ProxyHunterUpdater.exe .\ProxyHunter_wrong.exe -Force
+          $r = Start-Process -FilePath .\ProxyHunterUpdater.exe -ArgumentList '.\ProxyHunter.exe','.\ProxyHunter_wrong.exe','0','4.0.0' -PassThru
           if (-not $r.WaitForExit(90000)) { try { $r.Kill() } catch { }; throw 'Rollback helper timed out' }
           Write-Host "Rollback exit code: $($r.ExitCode)"
-          if ($r.ExitCode -eq 0) { throw 'Corrupt update was not rejected' }
+          if ($r.ExitCode -eq 0) { throw 'Version mismatch was not rolled back' }
           $env:PROXYHUNTER_VERSION_FILE = "$PWD\rollback-check.txt"
           $v2 = Start-Process -FilePath .\ProxyHunter.exe -ArgumentList '--version' -PassThru
           if (-not $v2.WaitForExit(30000)) { try { $v2.Kill() } catch { }; throw 'Rollback version check timed out' }
@@ -150,6 +157,7 @@ jobs:
             clean-test/crash.log
             backend-data/server.out
             backend-data/server.err
+            updater-test/updater.log
       - name: Stop backend
         if: always()
         run: |

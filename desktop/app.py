@@ -306,7 +306,7 @@ class ProxyHunterApp(tk.Tk):
         bar = tk.Frame(frame, bg=CHARCOAL)
         bar.pack(fill="x", pady=8)
         for text, action in (("Start", "gateway_start"), ("Stop", "gateway_stop"), ("Restart", "gateway_restart"),
-                             ("Copy endpoint", "copy_endpoint"), ("Test", "test_connection")):
+                             ("Test", "test_connection")):
             tk.Button(bar, text=text, bg=SURFACE2, fg=TEXT, bd=0, padx=10, pady=6,
                       command=lambda a=action: self._run(a)).pack(side="left", padx=4)
         self.country_var = tk.StringVar(value="all")
@@ -401,6 +401,8 @@ class ProxyHunterApp(tk.Tk):
         self.diag_text.pack(fill="both", expand=True, padx=14, pady=8)
         tk.Button(diag, text="Refresh diagnostics", bg=SURFACE2, fg=TEXT, bd=0, padx=10, pady=6,
                   command=self._refresh_diag).pack(anchor="w", padx=14, pady=6)
+        tk.Button(diag, text="Copy gateway endpoint", bg=SURFACE2, fg=TEXT, bd=0, padx=10, pady=6,
+                  command=lambda: self._run("copy_endpoint")).pack(anchor="w", padx=14, pady=4)
         tk.Label(frame, text="Free public proxies are untrusted — never send sensitive data.",
                  bg=CHARCOAL, fg=MUTED, font=("Segoe UI", 9)).pack(anchor="w", pady=10)
 
