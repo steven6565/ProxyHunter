@@ -1,4 +1,4 @@
-name: Build Windows v3.4.1 (portable + setup)
+name: Build Windows v4.0.0 (portable + setup)
 
 on:
   workflow_dispatch:
@@ -18,6 +18,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install -r desktop/requirements.txt
+          python -m pip install -r server/requirements.txt
           python -m pip install "pyinstaller>=6.5"
       - name: Build portable EXE
         run: |
@@ -27,7 +28,18 @@ jobs:
         run: |
           cd desktop
           python build_updater.py
+      - name: Start backend for smoke test
+        run: |
+          $env:PROXYHUNTER_API_KEY = "testkey"
+          $env:PROXYHUNTER_DATA_DIR = "$PWD\\backend-data"
+          New-Item -ItemType Directory -Force -Path backend-data | Out-Null
+          Start-Process -FilePath python -ArgumentList "server/main.py" -WorkingDirectory "$PWD" -WindowStyle Hidden
+          Start-Sleep -Seconds 8
+          curl.exe -s http://127.0.0.1:8000/health
       - name: Clean-directory packaged EXE smoke test
+        env:
+          PROXYHUNTER_BACKEND_URL: http://127.0.0.1:8000
+          PROXYHUNTER_API_KEY: testkey
         run: |
           New-Item -ItemType Directory -Force -Path clean-test | Out-Null
           Copy-Item builds/ProxyHunter.exe clean-test/ProxyHunter.exe -Force
@@ -44,10 +56,14 @@ jobs:
           Write-Host "Sources: $($result.sources_total)/$($result.sources_enabled) enabled, discovered=$($result.discovered)"
           Write-Host "Sections: $($result.sections -join ', ')"
           Get-Content selftest.json
+      - name: Stop backend
+        run: |
+          if (Test-Path backend-data/server.pid) { Stop-Process -Id (Get-Content backend-data/server.pid) -Force -ErrorAction SilentlyContinue }
+          Get-Process python -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
       - name: Rename portable executable
         run: |
-          Copy-Item builds/ProxyHunter.exe builds/ProxyHunter_v3.4.1_Windows.exe -Force
-          Get-Item builds/ProxyHunter_v3.4.1_Windows.exe | Format-List Name,Length
+          Copy-Item builds/ProxyHunter.exe builds/ProxyHunter_v4.0.0_Windows.exe -Force
+          Get-Item builds/ProxyHunter_v4.0.0_Windows.exe | Format-List Name,Length
       - name: Install Inno Setup
         run: choco install innosetup -y --no-progress
       - name: Build Setup.exe
@@ -57,18 +73,18 @@ jobs:
           & $iscc desktop/installer.iss /Qp
       - name: Verify Setup.exe
         run: |
-          if (!(Test-Path builds/ProxyHunter_v3.4.1_Setup.exe)) { throw 'Setup.exe missing' }
-          Get-Item builds/ProxyHunter_v3.4.1_Setup.exe | Format-List Name,Length
+          if (!(Test-Path builds/ProxyHunter_v4.0.0_Setup.exe)) { throw 'Setup.exe missing' }
+          Get-Item builds/ProxyHunter_v4.0.0_Setup.exe | Format-List Name,Length
       - name: Package portable ZIP
-        run: Compress-Archive -Path builds/ProxyHunter_v3.4.1_Windows.exe -DestinationPath builds/ProxyHunter_v3.4.1_Windows_portable.zip -Force
+        run: Compress-Archive -Path builds/ProxyHunter_v4.0.0_Windows.exe -DestinationPath builds/ProxyHunter_v4.0.0_Windows_portable.zip -Force
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ProxyHunter-v3.4.1-Windows
+          name: ProxyHunter-v4.0.0-Windows
           path: |
-            builds/ProxyHunter_v3.4.1_Windows.exe
-            builds/ProxyHunter_v3.4.1_Setup.exe
-            builds/ProxyHunter_v3.4.1_Windows_portable.zip
+            builds/ProxyHunter_v4.0.0_Windows.exe
+            builds/ProxyHunter_v4.0.0_Setup.exe
+            builds/ProxyHunter_v4.0.0_Windows_portable.zip
             builds/ProxyHunterUpdater.exe
       - name: Signing notice
         run: echo "Artifacts are UNSIGNED unless a code-signing certificate secret is configured."

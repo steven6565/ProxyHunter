@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""ProxyHunter v3.4.1 Windows desktop application (Tkinter, modern UI)."""
+"""ProxyHunter v4.0.0 Windows desktop application (Tkinter, modern UI)."""
 
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "backend"))
 sys.path.insert(0, str(ROOT / "shared"))
 
-from backend.controller import BackendController, BackendWorker
+from backend.remote_controller import RemoteBackendController, RemoteBackendWorker, load_connection, save_connection
 from shared.exports import default_export_dir, export_history, suggested_name, delete_export, export_proxies
 from proxyhunter.models import Proxy
 
@@ -54,16 +54,20 @@ SECTIONS = [
 class ProxyHunterApp(tk.Tk):
     def __init__(self) -> None:
         super().__init__()
-        self.title("ProxyHunter v3.4.1")
+        self.title("ProxyHunter v4.0.0")
         self.geometry("1280x800")
         self.minsize(1000, 640)
         self.configure(bg=CHARCOAL)
         self.events: queue.Queue = queue.Queue()
-        self.controller = BackendController(on_event=lambda k, d: self.events.put((k, d)))
-        self.worker = BackendWorker(self.controller)
+        conn = load_connection()
+        if not conn.get("url"):
+            self._connection_setup()
+            conn = load_connection()
+        self.controller = RemoteBackendController(on_event=lambda k, d: self.events.put((k, d)),
+                                                url=conn.get("url", ""), api_key=conn.get("api_key", ""))
+        self.worker = RemoteBackendWorker(self.controller)
         self.pending: list = []
-        if self.controller.config.get("gateway", {}).get("auto_start", True):
-            self.pending.append(self.worker.submit(self.controller.gateway_start()))
+        threading.Thread(target=self._stats_loop, daemon=True).start()
         self.dark = True
         self.export_dir = default_export_dir(desktop=True)
         self._styles()
@@ -73,6 +77,25 @@ class ProxyHunterApp(tk.Tk):
         self.protocol("WM_DELETE_WINDOW", self.on_close)
         if self.controller.config.get("auto_update", True):
             threading.Thread(target=self._auto_update_loop, daemon=True).start()
+
+    def _connection_setup(self) -> None:
+        import tkinter.simpledialog as sd
+        url = sd.askstring("Backend connection", "Enter backend HTTPS URL:", initialvalue="https://")
+        if not url:
+            url = ""
+        key = sd.askstring("Backend connection", "Enter API key:", show="*")
+        if key is None:
+            key = ""
+        save_connection(url, key)
+
+    def _stats_loop(self) -> None:
+        import asyncio
+        while True:
+            try:
+                asyncio.run(self.controller.refresh_stats())
+            except Exception:  # noqa: BLE001
+                pass
+            time.sleep(1)
 
     # ---------------------------------------------------------------- styling
     def _styles(self) -> None:
@@ -109,7 +132,7 @@ class ProxyHunterApp(tk.Tk):
         side.grid(row=0, column=0, sticky="ns")
         side.grid_propagate(False)
         ttk.Label(side, text="◈ ProxyHunter", style="Title.TLabel", font=("Segoe UI", 16, "bold")).pack(pady=(22, 4))
-        ttk.Label(side, text="v3.4.1", style="Muted.TLabel").pack(pady=(0, 16))
+        ttk.Label(side, text="v4.0.0", style="Muted.TLabel").pack(pady=(0, 16))
         self.nav = tk.Listbox(side, bg=NAVY, fg=TEXT, selectbackground=ACCENT, selectforeground="white",
                               borderwidth=0, highlightthickness=0, font=("Segoe UI", 11), activestyle="none")
         self.nav.pack(fill="both", expand=True, padx=10)
@@ -330,7 +353,7 @@ class ProxyHunterApp(tk.Tk):
         self.auto_update_var = tk.BooleanVar(value=bool(self.controller.config.get("auto_update", True)))
         tk.Checkbutton(card, text="Enable automatic updates", variable=self.auto_update_var, bg=SURFACE, fg=TEXT,
                        selectcolor=SURFACE2, command=self._save_auto_update).pack(anchor="w", padx=14, pady=4)
-        self.update_status = tk.Label(card, text=f"Current version: 3.4.1", bg=SURFACE, fg=MUTED)
+        self.update_status = tk.Label(card, text=f"Current version: 4.0.0", bg=SURFACE, fg=MUTED)
         self.update_status.pack(anchor="w", padx=14, pady=4)
         tk.Button(card, text="Check for Updates", bg=ACCENT, fg="white", bd=0, padx=10, pady=6,
                   command=self._check_updates_now).pack(anchor="w", padx=14, pady=4)
@@ -348,7 +371,7 @@ class ProxyHunterApp(tk.Tk):
     def _build_about(self, frame):
         card = self._card(frame, "About")
         for line in (
-            "ProxyHunter v3.4.1 — Windows Desktop Edition",
+            "ProxyHunter v4.0.0 — Windows Desktop Edition",
             "Modern UI, fixed exports (JSON default), automatic updates.",
             "Gateway: http://127.0.0.1:8080 (localhost by default).",
             "No browser engine bundled. Lightweight Tkinter UI.",
@@ -748,7 +771,12 @@ class ProxyHunterApp(tk.Tk):
 
 
 def selftest():
+    import os
     import time
+    from backend.remote_controller import save_connection
+    url = os.environ.get("PROXYHUNTER_BACKEND_URL")
+    if url:
+        save_connection(url, os.environ.get("PROXYHUNTER_API_KEY", ""))
     app = ProxyHunterApp()
     try:
         app.withdraw()
@@ -761,8 +789,25 @@ def selftest():
         stats = app.controller.stats()
         sources = app.controller.sources()
         enabled = sum(1 for item in sources if item.get("enabled", True))
-        discovered = app.worker.submit(app.controller.discover()).result(timeout=240)
-        checked = app.worker.submit(app.controller.check(discovered[:10])).result(timeout=240)
+        app.worker.submit(app.controller.discover()).result(timeout=60)
+        # Wait for the remote backend to finish discovery.
+        deadline = time.time() + 240
+        while time.time() < deadline:
+            import asyncio
+            asyncio.run(app.controller.refresh_stats())
+            if (app.controller.stats().get("discovered") or 0) > 0 and app.controller.stats().get("operation") == "idle":
+                break
+            time.sleep(2)
+        stats = app.controller.stats()
+        discovered_count = stats.get("discovered", 0)
+        app.worker.submit(app.controller.check([])).result(timeout=60)
+        deadline = time.time() + 240
+        while time.time() < deadline:
+            asyncio.run(app.controller.refresh_stats())
+            if (app.controller.stats().get("checked") or 0) > 0 and app.controller.stats().get("operation") == "idle":
+                break
+            time.sleep(2)
+        checked_count = app.controller.stats().get("checked", 0)
         files = app.controller.export(str(app.export_dir), "working_proxies", formats=("txt", "csv", "json"))
         # verify JSON content
         import json as _json
@@ -771,9 +816,9 @@ def selftest():
         json_ok = isinstance(jdata.get("proxies"), list) and jdata.get("total") == len(jdata.get("proxies", []))
         gw_ok = app.worker.submit(app.controller.gateway_start()).result(timeout=30)
         payload = {
-            "ok": bool(sources and enabled and len(discovered) > 0 and len(checked) > 0
+            "ok": bool(sources and enabled and discovered_count > 0 and checked_count > 0
                        and len(files) == 3 and json_ok and gw_ok),
-            "version": "3.4.1",
+            "version": "4.0.0",
             "sections": list(SECTIONS),
             "status": stats.get("status"),
             "backend": stats.get("backend"),
@@ -781,21 +826,21 @@ def selftest():
             "internet": stats.get("internet"),
             "sources_total": len(sources),
             "sources_enabled": enabled,
-            "discovered": len(discovered),
-            "checked": len(checked),
+            "discovered": discovered_count,
+            "checked": checked_count,
             "export_files": [item["name"] for item in files],
             "json_verified": json_ok,
             "gateway_ok": gw_ok,
         }
     except Exception as exc:  # noqa: BLE001
-        payload = {"ok": False, "version": "3.4.1", "error": f"{type(exc).__name__}: {exc}"}
+        payload = {"ok": False, "version": "4.0.0", "error": f"{type(exc).__name__}: {exc}"}
     finally:
         try:
             app.on_close()
         except Exception:  # noqa: BLE001
             pass
         Path("selftest.json").write_text(json.dumps(payload, indent=2), encoding="utf-8")
-    print("ProxyHunter v3.4.1 selftest", "OK" if payload.get("ok") else payload.get("error"))
+    print("ProxyHunter v4.0.0 selftest", "OK" if payload.get("ok") else payload.get("error"))
 
 
 def main():
@@ -830,7 +875,7 @@ def main():
         image = Image.new("RGBA", (64, 64), (11, 18, 32, 255))
         draw = ImageDraw.Draw(image)
         draw.ellipse((14, 14, 50, 50), outline=(16, 185, 129, 255), width=5)
-        icon = pystray.Icon("ProxyHunter", image, "ProxyHunter v3.4.1")
+        icon = pystray.Icon("ProxyHunter", image, "ProxyHunter v4.0.0")
         threading.Thread(target=icon.run, daemon=True).start()
     except ImportError:
         pass
