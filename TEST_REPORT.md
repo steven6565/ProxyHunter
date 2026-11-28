@@ -1,4 +1,20 @@
-# ProxyHunter v3.1.1 — Test Report (v3.0/3.1 baseline below)
+# ProxyHunter v3.1.2 — Test Report (v3.0/3.1 baseline below)
+
+## v3.1.2 actual results
+
+| Test | Status | Evidence |
+|---|---|---|
+| Windows PyInstaller onefile build (`--onefile --windowed --clean`) | PASS | CI run 46054363004; 26,094,893-byte PE32+ EXE, 27,727,702-byte Setup |
+| Windows clean-runner EXE startup/GUI selftest | PASS | `selftest.json`: `ok:true`, version 3.1.2, 16/19 sources enabled, discovered=18217, checked=10, all 9 sections built, backend READY, gateway ONLINE, internet ONLINE |
+| Tkinter geometry audit | PASS | two invalid `pack(width=...)` fixed; all geometry calls audited |
+| Packaged source seeding (Windows + Android) | PASS | 33/33 backend tests incl. `33_packaged_sources_seeding`: empty `{"custom":[]}` and malformed files are re-seeded with all 15 enabled authorized sources; `PROXYHUNTER_HOME` override honored |
+| Packaged TLS trust store | PASS | certifi CA bundle collected into the Windows EXE; `make_ssl_context()` used by discovery/checker/test_source; local fetch test returned 200 |
+| Android network security config | PASS (build) | `network_security_config.xml` referenced in manifest; cleartext only for localhost/127.0.0.1 |
+| Android installed-APK emulator instrumentation | PENDING | CI run 46054352845 still running at last check; prior failure was "No enabled sources" (now fixed) |
+| Backend regression | PASS | 33/33 in `output/test_results.json` |
+| 60-minute stability (v3 baseline) | PASS | 99.725% success |
+
+Windows runtime errors reported by the user (No enabled sources, 0 discovered, Workers n/a, Last Refresh never) were reproduced from the source: a packaged Android install received an empty `{"custom": []}` sources file and `base_dir()` ignored `PROXYHUNTER_HOME` on machines with a source checkout. Both are fixed; Windows onefile smoke test now discovers 18,217 proxies.
 
 ## v3.1.1 actual results
 

@@ -1,4 +1,4 @@
-# ProxyHunter v3.1.0 — Desktop & Mobile Edition (critical bug fixes)
+# ProxyHunter v3.1.2 — Desktop & Mobile Edition (packaged discovery fixes)
 
 > **v3.0 adds a native Kotlin/Jetpack Compose Android app, a lightweight Tkinter Windows desktop app, a shared backend controller, an export engine, and reproducible APK/EXE build workflows.** The proven Python backend and all v2 features are preserved. The CLI remains available as an advanced mode: `python3 main.py`.
 >

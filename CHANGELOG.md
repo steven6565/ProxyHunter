@@ -1,5 +1,24 @@
 # Changelog
 
+## v3.1.2 — Packaged discovery, TLS trust store and source seeding (2026-11-27)
+
+### Windows
+- Fixed the packaged discovery root cause: `ensure_packaged_defaults()` now seeds the full 19 authorized sources when `sources.json` is missing/empty, and `load_sources()` re-seeds empty/malformed/outdated files instead of accepting `{"custom": []}`.
+- `base_dir()` now honors `PROXYHUNTER_HOME` (Android filesDir) even on development machines.
+- Packaged TLS trust store: added `proxyhunter/net.py` (`configure_ca_bundle()` + `make_ssl_context()`); certifi is added to requirements and collected into the onefile EXE, so aiohttp uses the bundled CA bundle on Windows and Android.
+- Discovery progress no longer shows "complete" when zero proxies were found; worker selection and live stats preserved.
+- Clean-directory Windows smoke test passes with real discovery: 16/19 sources enabled, 18,217 proxies discovered, 10 validated, all 9 UI sections.
+
+### Android
+- Same source-seeding and TLS fixes; `ProxyService` now calls `Python.start(AndroidPlatform(...))` before importing the bridge and reports bridge errors to `backend_error.txt` in filesDir.
+- `/health` distinguishes fatal backend failure from gateway-start warnings; `READY` is reported as long as the controller loaded.
+- Added `sources_enabled`, `logs` to `/api/stats` and `source_diagnostics`/`source_test` actions.
+
+### Tests
+- 33/33 backend tests PASS (added `33_packaged_sources_seeding`).
+- Windows clean-runner EXE selftest: PASS (run 46054363004).
+- Android emulator instrumentation: in progress at time of writing.
+
 ## v3.1.1 — Android cleartext + Windows runtime fixes (2026-11-27)
 
 ### Android

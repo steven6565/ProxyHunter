@@ -1,4 +1,15 @@
-# ProxyHunter v3.1.0 — Production Readiness Assessment (v3.0 baseline below)
+# ProxyHunter v3.1.2 — Production Readiness Assessment (v3.0 baseline below)
+
+## v3.1.2 verdict
+
+**Packaged discovery root cause FIXED and verified on a clean Windows runner.**
+**Android source-seeding fix applied; emulator evidence pending.**
+
+- Root cause reproduced and fixed: packaged installs seeded an empty `{"custom": []}` sources file and `base_dir()` ignored `PROXYHUNTER_HOME`; discovery now re-seeds all 19 authorized sources.
+- TLS trust store fixed via `proxyhunter/net.py` + certifi on Windows (collected into EXE) and Android (pip-installed).
+- Windows clean-runner selftest: PASS — 16/19 sources enabled, 18,217 discovered, 10 validated, all 9 sections, backend READY, gateway/internet ONLINE.
+- Backend regression: 33/33 PASS; 60-minute stability 99.725%.
+- Android physical-device tap-through and interactive Windows GUI remain NOT TESTED.
 
 ## v3.1 verdict
 
