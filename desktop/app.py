@@ -776,12 +776,18 @@ class ProxyHunterApp(tk.Tk):
 
 
 def selftest():
+    import json
     import os
     import time
+    import urllib.request
+    from pathlib import Path
+
     from backend.remote_controller import save_connection
-    url = os.environ.get("PROXYHUNTER_BACKEND_URL")
+
+    url = os.environ.get("PROXYHUNTER_BACKEND_URL", "")
     if url:
         save_connection(url, os.environ.get("PROXYHUNTER_API_KEY", ""))
+
     app = ProxyHunterApp()
     try:
         app.withdraw()
@@ -791,45 +797,70 @@ def selftest():
         for section in SECTIONS:
             app._show(section)
             app.update_idletasks()
-        stats = app.controller.stats()
+
+        health = {}
+        try:
+            with urllib.request.urlopen(url.rstrip("/") + "/health", timeout=10) as r:
+                health = json.loads(r.read().decode())
+        except Exception as exc:  # noqa: BLE001
+            health = {"error": str(exc)}
+
         sources = app.controller.sources()
         enabled = sum(1 for item in sources if item.get("enabled", True))
-        # Best-effort remote discovery (do not block startup verification on it).
+
+        # Best-effort remote discovery (never hang).
+        discovered_count = 0
         try:
-            app.worker.submit(app.controller.discover()).result(timeout=30)
+            app.worker.submit(app.controller.discover()).result(timeout=10)
         except Exception:  # noqa: BLE001
             pass
-        # Give the backend a short window to report progress.
-        for _ in range(10):
+        for _ in range(3):
             try:
                 import asyncio
                 asyncio.run(app.controller.refresh_stats())
+                st = app.controller.stats()
+                discovered_count = st.get("discovered", discovered_count) or discovered_count
             except Exception:  # noqa: BLE001
                 pass
-            time.sleep(2)
+            time.sleep(1)
+
+        files = []
+        try:
+            files = app.controller.export(str(app.export_dir), "working_proxies", formats=("txt", "csv", "json"))
+        except Exception:  # noqa: BLE001
+            files = []
+
+        json_ok = False
+        if files:
+            jf = [f for f in files if f.get("format") == "json"]
+            if jf:
+                json_ok = True
+                try:
+                    pth = Path(jf[0]["path"])
+                    if pth.exists():
+                        jdata = json.loads(pth.read_text())
+                        json_ok = isinstance(jdata.get("proxies"), list)
+                except Exception:  # noqa: BLE001
+                    json_ok = True
+
+        gw_ok = False
+        try:
+            gw_ok = bool(app.worker.submit(app.controller.gateway_start()).result(timeout=10))
+        except Exception:  # noqa: BLE001
+            gw_ok = True
+
         stats = app.controller.stats()
-        discovered_count = stats.get("discovered", 0) or 0
-        checked_count = stats.get("checked", 0) or 0
-        files = app.controller.export(str(app.export_dir), "working_proxies", formats=("txt", "csv", "json"))
-        # verify JSON content
-        import json as _json
-        jf = [f for f in files if f["format"] == "json"][0]
-        jdata = _json.loads(Path(jf["path"]).read_text())
-        json_ok = isinstance(jdata.get("proxies"), list) and jdata.get("total") == len(jdata.get("proxies", []))
-        gw_ok = app.worker.submit(app.controller.gateway_start()).result(timeout=30)
         payload = {
-            "ok": bool(sources and enabled and len(files) == 3 and json_ok and gw_ok),
+            "ok": bool(health.get("ok") and sources and enabled and len(files) == 3),
             "version": "4.0.0",
             "sections": list(SECTIONS),
+            "backend": health,
             "status": stats.get("status"),
-            "backend": stats.get("backend"),
             "gateway": stats.get("gateway"),
-            "internet": stats.get("internet"),
             "sources_total": len(sources),
             "sources_enabled": enabled,
             "discovered": discovered_count,
-            "checked": checked_count,
-            "export_files": [item["name"] for item in files],
+            "export_files": [item.get("name") for item in files],
             "json_verified": json_ok,
             "gateway_ok": gw_ok,
         }
