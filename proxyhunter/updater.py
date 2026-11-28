@@ -165,4 +165,3 @@ def schedule_install(current_exe: Path, new_exe: Path) -> None:
         )
         subprocess.Popen(["powershell", "-NoProfile", "-WindowStyle", "Hidden", "-Command", script],
                          close_fds=True)
-PY

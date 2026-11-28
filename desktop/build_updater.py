@@ -15,4 +15,3 @@ args = [
     str(HERE / "updater.py"),
 ]
 run(args)
-PY
