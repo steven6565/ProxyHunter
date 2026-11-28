@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""ProxyHunter v3.4.0 Windows desktop application (Tkinter, modern UI)."""
+"""ProxyHunter v3.4.1 Windows desktop application (Tkinter, modern UI)."""
 
 from __future__ import annotations
 
@@ -54,7 +54,7 @@ SECTIONS = [
 class ProxyHunterApp(tk.Tk):
     def __init__(self) -> None:
         super().__init__()
-        self.title("ProxyHunter v3.4.0")
+        self.title("ProxyHunter v3.4.1")
         self.geometry("1280x800")
         self.minsize(1000, 640)
         self.configure(bg=CHARCOAL)
@@ -109,7 +109,7 @@ class ProxyHunterApp(tk.Tk):
         side.grid(row=0, column=0, sticky="ns")
         side.grid_propagate(False)
         ttk.Label(side, text="◈ ProxyHunter", style="Title.TLabel", font=("Segoe UI", 16, "bold")).pack(pady=(22, 4))
-        ttk.Label(side, text="v3.4.0", style="Muted.TLabel").pack(pady=(0, 16))
+        ttk.Label(side, text="v3.4.1", style="Muted.TLabel").pack(pady=(0, 16))
         self.nav = tk.Listbox(side, bg=NAVY, fg=TEXT, selectbackground=ACCENT, selectforeground="white",
                               borderwidth=0, highlightthickness=0, font=("Segoe UI", 11), activestyle="none")
         self.nav.pack(fill="both", expand=True, padx=10)
@@ -330,7 +330,7 @@ class ProxyHunterApp(tk.Tk):
         self.auto_update_var = tk.BooleanVar(value=bool(self.controller.config.get("auto_update", True)))
         tk.Checkbutton(card, text="Enable automatic updates", variable=self.auto_update_var, bg=SURFACE, fg=TEXT,
                        selectcolor=SURFACE2, command=self._save_auto_update).pack(anchor="w", padx=14, pady=4)
-        self.update_status = tk.Label(card, text=f"Current version: 3.4.0", bg=SURFACE, fg=MUTED)
+        self.update_status = tk.Label(card, text=f"Current version: 3.4.1", bg=SURFACE, fg=MUTED)
         self.update_status.pack(anchor="w", padx=14, pady=4)
         tk.Button(card, text="Check for Updates", bg=ACCENT, fg="white", bd=0, padx=10, pady=6,
                   command=self._check_updates_now).pack(anchor="w", padx=14, pady=4)
@@ -348,7 +348,7 @@ class ProxyHunterApp(tk.Tk):
     def _build_about(self, frame):
         card = self._card(frame, "About")
         for line in (
-            "ProxyHunter v3.4.0 — Windows Desktop Edition",
+            "ProxyHunter v3.4.1 — Windows Desktop Edition",
             "Modern UI, fixed exports (JSON default), automatic updates.",
             "Gateway: http://127.0.0.1:8080 (localhost by default).",
             "No browser engine bundled. Lightweight Tkinter UI.",
@@ -773,7 +773,7 @@ def selftest():
         payload = {
             "ok": bool(sources and enabled and len(discovered) > 0 and len(checked) > 0
                        and len(files) == 3 and json_ok and gw_ok),
-            "version": "3.4.0",
+            "version": "3.4.1",
             "sections": list(SECTIONS),
             "status": stats.get("status"),
             "backend": stats.get("backend"),
@@ -788,35 +788,40 @@ def selftest():
             "gateway_ok": gw_ok,
         }
     except Exception as exc:  # noqa: BLE001
-        payload = {"ok": False, "version": "3.4.0", "error": f"{type(exc).__name__}: {exc}"}
+        payload = {"ok": False, "version": "3.4.1", "error": f"{type(exc).__name__}: {exc}"}
     finally:
         try:
             app.on_close()
         except Exception:  # noqa: BLE001
             pass
         Path("selftest.json").write_text(json.dumps(payload, indent=2), encoding="utf-8")
-    print("ProxyHunter v3.4.0 selftest", "OK" if payload.get("ok") else payload.get("error"))
+    print("ProxyHunter v3.4.1 selftest", "OK" if payload.get("ok") else payload.get("error"))
 
 
 def main():
     if "--selftest" in sys.argv:
         selftest()
         return
-    # Single-instance guard (best-effort, Wine-friendly).
-    lock = Path(os.environ.get("TEMP", ".")) / "ProxyHunter.lock"
+    # Single-instance guard (Wine/Winlator safe).  Never use os.kill(pid, 0)
+    # on Windows: it raises OSError/WinError 6 and SystemError under Wine.
+    import socket
+    _single = None
     try:
-        if lock.exists():
-            try:
-                pid = int(lock.read_text().strip())
-                os.kill(pid, 0)
-                # already running
-                return
-            except (OSError, ValueError):
-                pass
-        lock.write_text(str(os.getpid()))
+        _single = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        _single.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 0)
+        _single.bind(("127.0.0.1", 47831))
+        _single.listen(1)
     except OSError:
-        pass
+        # Another instance is already running (or the port is unavailable).
+        try:
+            if _single is not None:
+                _single.close()
+        except OSError:
+            pass
+        return
     app = ProxyHunterApp()
+    # Keep the socket alive for the process lifetime.
+    app._single_instance_socket = _single
     if "--startup" in sys.argv:
         app.after(300, app.iconify)
     try:
@@ -825,7 +830,7 @@ def main():
         image = Image.new("RGBA", (64, 64), (11, 18, 32, 255))
         draw = ImageDraw.Draw(image)
         draw.ellipse((14, 14, 50, 50), outline=(16, 185, 129, 255), width=5)
-        icon = pystray.Icon("ProxyHunter", image, "ProxyHunter v3.4.0")
+        icon = pystray.Icon("ProxyHunter", image, "ProxyHunter v3.4.1")
         threading.Thread(target=icon.run, daemon=True).start()
     except ImportError:
         pass

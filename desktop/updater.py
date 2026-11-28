@@ -19,10 +19,17 @@ from pathlib import Path
 
 
 def _alive(pid: int) -> bool:
+    # os.kill(pid, 0) is not reliable on Windows/Wine (WinError 6 / SystemError).
+    # Prefer a ctypes OpenProcess check, and otherwise assume the process is gone.
     try:
-        os.kill(pid, 0)
-        return True
-    except (OSError, ProcessLookupError):
+        import ctypes
+        kernel32 = ctypes.windll.kernel32
+        handle = kernel32.OpenProcess(0x1000, False, pid)  # SYNCHRONIZE
+        if handle:
+            kernel32.CloseHandle(handle)
+            return True
+        return False
+    except Exception:  # noqa: BLE001
         return False
 
 
@@ -34,7 +41,8 @@ def main() -> int:
     new = Path(sys.argv[2])
     pid = int(sys.argv[3]) if len(sys.argv) > 3 and sys.argv[3].isdigit() else None
 
-    # Wait for the main process to exit.
+    # Give the main process time to release its file handles (Wine-safe).
+    time.sleep(2)
     if pid is not None:
         deadline = time.monotonic() + 120
         while _alive(pid) and time.monotonic() < deadline:
