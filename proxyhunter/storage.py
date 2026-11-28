@@ -242,6 +242,15 @@ class Storage:
             params.append(limit)
         return [Proxy.from_row(row) for row in self.conn.execute(query, params).fetchall()]
 
+    def get_all(self, limit: int = 0) -> list[Proxy]:
+        """Return every stored proxy, including unchecked/discovered rows."""
+        query = "SELECT * FROM proxies ORDER BY last_checked DESC"
+        params: list = []
+        if limit:
+            query += " LIMIT ?"
+            params.append(limit)
+        return [Proxy.from_row(row) for row in self.conn.execute(query, params).fetchall()]
+
     def count_working(self, max_age_hours: float = 0) -> int:
         return len(self.get_working(max_age_hours=max_age_hours))
 

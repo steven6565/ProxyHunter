@@ -155,12 +155,12 @@ def download_update(url: str, expected_sha256: str, destination: Path,
     return destination
 
 
-def schedule_install(current_exe: Path, new_exe: Path) -> None:
+def schedule_install(current_exe: Path, new_exe: Path, expected_version: str = "") -> None:
     """Launch the separate updater helper to replace the running EXE."""
     import subprocess
 
     helper = current_exe.with_name("ProxyHunterUpdater.exe")
-    args = [str(current_exe), str(new_exe), str(os.getpid())]
+    args = [str(current_exe), str(new_exe), str(os.getpid()), str(expected_version)]
     if helper.is_file():
         subprocess.Popen([str(helper)] + args, close_fds=True)
         return

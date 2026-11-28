@@ -23,4 +23,12 @@ desktop/build/
 desktop/dist/
 .DS_Store
 selftest.json
+selftest.log
+crash.log
+.env
+server/*.pid
+server/server.log
+backend-data/
+clean-test/
+exports/
 tests/fixtures/*.key

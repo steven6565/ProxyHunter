@@ -15,7 +15,8 @@ HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
 
 HIDDEN = [
-    "backend", "backend.controller", "shared", "shared.exports",
+    "backend", "backend.controller", "backend.connection_store", "selftest_mode",
+    "shared", "shared.exports",
     "proxyhunter.checker", "proxyhunter.config", "proxyhunter.dashboard",
     "proxyhunter.discovery", "proxyhunter.gateway", "proxyhunter.geo",
     "proxyhunter.logging_utils", "proxyhunter.models", "proxyhunter.net",
@@ -42,6 +43,7 @@ args = [
     "--paths", str(ROOT / "shared"),
     "--add-data", f"{ROOT / 'sources.json'};.",
     "--add-data", f"{ROOT / 'config.json'};.",
+    "--runtime-hook", str(HERE / "runtime_hook.py"),
     "--collect-data", "certifi",
 ]
 for module in HIDDEN:

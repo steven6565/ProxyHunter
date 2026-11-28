@@ -3,20 +3,42 @@
 
 from __future__ import annotations
 
-import json
 import os
-import queue
 import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+for _path in (ROOT, ROOT / "backend", ROOT / "shared"):
+    if str(_path) not in sys.path:
+        sys.path.insert(0, str(_path))
+
+
+def _selftest_requested() -> bool:
+    """True for ``--selftest`` or ``PROXYHUNTER_SELFTEST=1``."""
+    if os.environ.get("PROXYHUNTER_SELFTEST", "").strip().lower() in ("1", "true", "yes", "on"):
+        return True
+    return any(str(arg).lower() in ("--selftest", "/selftest") for arg in sys.argv[1:])
+
+
+# Handle non-GUI modes before importing Tkinter, the GUI, the updater or the
+# remote-controller stack.  This keeps the packaged EXE completely
+# non-interactive and prevents modal dialogs/background threads from hanging CI.
+if __name__ == "__main__" and "--version" in sys.argv:
+    _version_file = Path(os.environ.get("PROXYHUNTER_VERSION_FILE", "version.txt"))
+    _version_file.write_text("4.0.0", encoding="utf-8")
+    raise SystemExit(0)
+
+if __name__ == "__main__" and _selftest_requested():
+    from selftest_mode import run_selftest
+
+    raise SystemExit(run_selftest())
+
+import json
+import queue
 import threading
 import time
 import tkinter as tk
-from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
-
-ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT))
-sys.path.insert(0, str(ROOT / "backend"))
-sys.path.insert(0, str(ROOT / "shared"))
 
 from backend.remote_controller import RemoteBackendController, RemoteBackendWorker, load_connection, save_connection
 from shared.exports import default_export_dir, export_history, suggested_name, delete_export, export_proxies
@@ -70,6 +92,8 @@ class ProxyHunterApp(tk.Tk):
         threading.Thread(target=self._stats_loop, daemon=True).start()
         self.dark = True
         self.export_dir = default_export_dir(desktop=True)
+        self._pending_update = None
+        self._pending_update_version = ""
         self._styles()
         self._layout()
         self._bind_keys()
@@ -355,6 +379,8 @@ class ProxyHunterApp(tk.Tk):
         tk.Entry(card, textvariable=self.timeout_var, bg=SURFACE2, fg=TEXT, width=8, bd=0).pack(anchor="w", padx=14, pady=4, ipady=6)
         tk.Button(card, text="Save", bg=ACCENT, fg="white", bd=0, padx=10, pady=6,
                   command=self._save_settings).pack(anchor="w", padx=14, pady=6)
+        tk.Button(card, text="Change Backend Connection", bg=SURFACE2, fg=TEXT, bd=0,
+                  padx=10, pady=6, command=self._change_connection).pack(anchor="w", padx=14, pady=4)
         self.auto_update_var = tk.BooleanVar(value=bool(self.controller.config.get("auto_update", True)))
         tk.Checkbutton(card, text="Enable automatic updates", variable=self.auto_update_var, bg=SURFACE, fg=TEXT,
                        selectcolor=SURFACE2, command=self._save_auto_update).pack(anchor="w", padx=14, pady=4)
@@ -362,6 +388,11 @@ class ProxyHunterApp(tk.Tk):
         self.update_status.pack(anchor="w", padx=14, pady=4)
         tk.Button(card, text="Check for Updates", bg=ACCENT, fg="white", bd=0, padx=10, pady=6,
                   command=self._check_updates_now).pack(anchor="w", padx=14, pady=4)
+        self.update_button = tk.Button(
+            card, text="Restart and Update", bg=GREEN, fg="white", bd=0,
+            padx=10, pady=6, state="disabled", command=self._restart_and_update,
+        )
+        self.update_button.pack(anchor="w", padx=14, pady=4)
         self.update_progress = ttk.Progressbar(card, mode="determinate", maximum=100)
         self.update_progress.pack(fill="x", padx=14, pady=4)
         # advanced diagnostics
@@ -377,8 +408,8 @@ class ProxyHunterApp(tk.Tk):
         card = self._card(frame, "About")
         for line in (
             "ProxyHunter v4.0.0 — Windows Desktop Edition",
-            "Modern UI, fixed exports (JSON default), automatic updates.",
-            "Gateway: http://127.0.0.1:8080 (localhost by default).",
+            "Modern UI, server-side discovery/validation, verified updates.",
+            "The rotating gateway is managed by your configured backend.",
             "No browser engine bundled. Lightweight Tkinter UI.",
         ):
             tk.Label(card, text=line, bg=SURFACE, fg=TEXT).pack(anchor="w", padx=14, pady=2)
@@ -527,15 +558,14 @@ class ProxyHunterApp(tk.Tk):
             messagebox.showerror("Export failed", str(exc))
 
     def _export_quick(self, scope):
-        proxies = self._scope_proxies(scope)
-        if not proxies:
-            messagebox.showwarning("Export", "No proxies to export.")
-            return
         fmt = self.export_format_var.get()
         name = suggested_name("all" if scope == "all" else scope, "")
         try:
-            items = [Proxy.from_dict(d) for d in proxies]
-            created = export_proxies(items, self.export_dir, name, formats=(fmt,))
+            # Export on the backend and download the generated file(s).
+            created = self.controller.export(str(self.export_dir), name, formats=(fmt,))
+            if not created:
+                messagebox.showwarning("Export", "No proxies to export or backend unavailable.")
+                return
             messagebox.showinfo("Download complete", f"{len(created)} file(s) in {self.export_dir}")
             self._update_history()
         except Exception as exc:  # noqa: BLE001
@@ -586,6 +616,22 @@ class ProxyHunterApp(tk.Tk):
                 item.get("count", 0), item.get("size_bytes", 0), item.get("timestamp", ""),
             ))
 
+    def _change_connection(self):
+        import tkinter.simpledialog as sd
+        current = load_connection()
+        url = sd.askstring("Backend connection", "Backend HTTPS URL:",
+                           initialvalue=current.get("url", "https://"))
+        if not url:
+            return
+        key = sd.askstring("Backend connection", "API key:", show="*",
+                           initialvalue=current.get("api_key", ""))
+        if key is None:
+            return
+        save_connection(url, key)
+        self.controller.base_url = url.rstrip("/")
+        self.controller.api_key = key
+        messagebox.showinfo("ProxyHunter", "Connection saved. Restart the app to reconnect.")
+
     def _save_settings(self):
         try:
             self.controller.config["timeout_seconds"] = max(1.0, float(self.timeout_var.get()))
@@ -622,6 +668,10 @@ class ProxyHunterApp(tk.Tk):
             self.diag_text.insert("end", f"{k}: {s.get(k)}\n")
 
     def _check_updates_now(self):
+        if self._pending_update:
+            self.update_status.config(text="Update ready. Click Restart and Update.")
+            self.update_button.config(state="normal")
+            return
         self.update_status.config(text="Checking for updates...")
         threading.Thread(target=self._update_worker, daemon=True).start()
 
@@ -645,11 +695,28 @@ class ProxyHunterApp(tk.Tk):
                 self.after(0, lambda m=mb, s=spd, e=eta: self.update_status.config(
                     text=f"Downloading {info['version']}: {m:.1f} MB ({s:.2f} MB/s, ETA {int(e)}s)"))
             download_update(info["url"], info.get("sha256", ""), dest, progress=progress)
-            self.after(0, lambda: self.update_status.config(text=f"Downloaded {info['version']}; installing on exit..."))
-            from proxyhunter.updater import schedule_install
-            schedule_install(Path(sys.executable), dest)
+            self._pending_update = dest
+            self._pending_update_version = str(info.get("version", ""))
+            self.after(0, lambda: self.update_status.config(
+                text=f"Update {info['version']} verified. Click Restart and Update."))
+            self.after(0, lambda: self.update_button.config(state="normal"))
         except Exception as exc:  # noqa: BLE001
             self.after(0, lambda: self.update_status.config(text=f"Update error: {exc}"))
+
+    def _restart_and_update(self):
+        if not self._pending_update:
+            messagebox.showinfo("ProxyHunter", "No verified update is ready yet.")
+            return
+        try:
+            from proxyhunter.updater import schedule_install
+            schedule_install(Path(sys.executable), self._pending_update,
+                             expected_version=self._pending_update_version)
+        except Exception as exc:  # noqa: BLE001
+            messagebox.showerror("Update", f"Could not start the updater: {exc}")
+            return
+        # Close gracefully; the helper waits for this PID to exit, replaces the
+        # EXE, relaunches it and rolls back if the new build does not start.
+        self.on_close()
 
     def _auto_update_loop(self):
         time.sleep(30)
@@ -705,9 +772,12 @@ class ProxyHunterApp(tk.Tk):
                 pass
         if s.get("operation") != "idle":
             self._auto_exported = False
-        # gateway labels
+        # gateway labels (internal endpoint stays in Advanced Diagnostics)
         for key, label in getattr(self, "gw_labels", {}).items():
-            label.config(text=str(s.get(key, "-")))
+            if key == "endpoint":
+                label.config(text="Hidden (Advanced Diagnostics)")
+            else:
+                label.config(text=str(s.get(key, "-")))
         # status dot
         if hasattr(self, "status_dot"):
             gw = s.get("gateway", "-")
@@ -770,98 +840,13 @@ class ProxyHunterApp(tk.Tk):
         finally:
             self.destroy()
 
-    # ---------------------------------------------------------------- selftest
-    def selftest(self=None):
-        pass
-
-
-def selftest():
-    import json
-    import os
-    import time
-    import urllib.request
-    from pathlib import Path
-
-    from backend.remote_controller import save_connection
-
-    url = os.environ.get("PROXYHUNTER_BACKEND_URL", "")
-    if url:
-        save_connection(url, os.environ.get("PROXYHUNTER_API_KEY", ""))
-
-    # Non-interactive, bounded smoke test.  We deliberately avoid constructing
-    # the full Tkinter application here: under Wine/Winlator the GUI event loop
-    # and background polling threads can deadlock the process.  UI construction
-    # is still exercised by importing the module and instantiating the class in
-    # a guarded way below.
-    health = {}
-    try:
-        with urllib.request.urlopen(url.rstrip("/") + "/health", timeout=10) as r:
-            health = json.loads(r.read().decode())
-    except Exception as exc:  # noqa: BLE001
-        health = {"error": str(exc)}
-
-    sources = []
-    enabled = 0
-    try:
-        import json as _j
-        req = urllib.request.Request(url.rstrip("/") + "/api/sources", headers={"X-API-Key": os.environ.get("PROXYHUNTER_API_KEY", "")})
-        with urllib.request.urlopen(req, timeout=10) as r:
-            sources = _j.loads(r.read().decode()).get("sources", [])
-        enabled = sum(1 for item in sources if item.get("enabled", True))
-    except Exception:  # noqa: BLE001
-        pass
-
-    discovered_count = 0
-    try:
-        import json as _j
-        data = json.dumps({"workers": 50}).encode()
-        req = urllib.request.Request(url.rstrip("/") + "/api/discover", data=data, headers={"Content-Type": "application/json", "X-API-Key": os.environ.get("PROXYHUNTER_API_KEY", "")})
-        urllib.request.urlopen(req, timeout=10).read()
-        time.sleep(3)
-        req = urllib.request.Request(url.rstrip("/") + "/api/stats", headers={"X-API-Key": os.environ.get("PROXYHUNTER_API_KEY", "")})
-        with urllib.request.urlopen(req, timeout=10) as r:
-            discovered_count = _j.loads(r.read().decode()).get("discovered", 0)
-    except Exception:  # noqa: BLE001
-        pass
-
-    files = []
-    try:
-        import json as _j
-        data = json.dumps({"name": "working_proxies", "format": "json"}).encode()
-        req = urllib.request.Request(url.rstrip("/") + "/api/export", data=data, headers={"Content-Type": "application/json", "X-API-Key": os.environ.get("PROXYHUNTER_API_KEY", "")})
-        with urllib.request.urlopen(req, timeout=30) as r:
-            files = _j.loads(r.read().decode()).get("files", [])
-    except Exception:  # noqa: BLE001
-        files = []
-
-    # Verify UI module imports and class existence (no GUI loop).
-    ui_ok = False
-    try:
-        import desktop.app as _m
-        ui_ok = hasattr(_m, "ProxyHunterApp") and hasattr(_m, "SECTIONS")
-    except Exception:  # noqa: BLE001
-        ui_ok = False
-
-    payload = {
-        "ok": bool(health.get("ok") and ui_ok and sources and enabled and len(files) >= 1),
-        "version": "4.0.0",
-        "sections": SECTIONS if "SECTIONS" in globals() else [],
-        "backend": health,
-        "sources_total": len(sources),
-        "sources_enabled": enabled,
-        "discovered": discovered_count,
-        "export_files": [item.get("name") for item in files] if isinstance(files, list) else [],
-        "ui_import_ok": ui_ok,
-    }
-    Path("selftest.json").write_text(json.dumps(payload, indent=2), encoding="utf-8")
-    print("ProxyHunter v4.0.0 selftest", "OK" if payload.get("ok") else payload.get("error", "FAIL"))
-    raise SystemExit(0 if payload.get("ok") else 1)
-
-
 def main():
-    if "--selftest" in sys.argv:
-        selftest()
-        return
+    # Fallback for unusual launchers that import this module instead of running
+    # it as __main__.  The early dispatch above is the normal path.
+    if _selftest_requested():
+        from selftest_mode import run_selftest
+
+        raise SystemExit(run_selftest())
     # Single-instance guard (Wine/Winlator safe).  Never use os.kill(pid, 0)
     # on Windows: it raises OSError/WinError 6 and SystemError under Wine.
     import socket
